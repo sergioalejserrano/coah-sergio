@@ -92,7 +92,40 @@
   .race .r-name{font-size:16px;font-weight:600;letter-spacing:-0.01em}
   .race .r-meta{font-size:13px;color:var(--muted);margin-top:2px}
   .race .r-del{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer}
+  .race .r-edit{background:none;border:none;color:var(--muted);font-size:14px;padding:2px 6px;cursor:pointer}
   button{font-family:var(--sans)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    background:var(--ink);color:#fff;border:none;border-radius:8px;padding:12px 16px;
+    font-size:14px;font-weight:600;cursor:pointer;width:100%;transition:transform .12s,background .2s}
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.sm{width:auto;padding:9px 13px;font-size:13px}
+  input,select,textarea{font-family:var(--sans);font-size:15px;width:100%;
+    border:1px solid var(--line);border-radius:8px;padding:11px 12px;background:#fff;color:var(--ink)}
+  label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin:10px 0 5px}
+  /* Tooltip — fixed overlay bottom of screen, never clips */
+  .tip-btn{background:none;border:1px solid var(--line);border-radius:50%;width:17px;height:17px;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-left:3px;flex:none}
+  #tipOverlay{display:none;position:fixed;left:12px;right:12px;bottom:calc(80px + env(safe-area-inset-bottom));background:var(--ink);color:#fff;border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.6;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.35)}
+  #tipOverlay.show{display:block}
+  #tipClose{float:right;background:none;border:none;color:rgba(255,255,255,.6);font-size:20px;cursor:pointer;padding:0 0 0 10px;line-height:1}
+  /* Collapsible cards */
+  .collap-hdr{display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:0}
+  .collap-hdr h3{margin-bottom:0}
+  .collap-arrow{color:var(--muted);font-size:13px;transition:transform .2s}
+  .collap-body{margin-top:14px}
+  /* Metric cards with sparkline */
+  .mcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative;overflow:hidden}
+  .mcard .mc-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+  .mcard .mc-val{font-size:28px;font-weight:700;letter-spacing:-0.03em;margin-top:2px;line-height:1.1}
+  .mcard .mc-sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .mcard .mc-spark{position:absolute;bottom:10px;right:10px;opacity:.5}
+  /* Health tab */
+  .inbody-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .inbody-metric{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .inbody-metric .im-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .inbody-metric .im-val{font-size:20px;font-weight:700;margin-top:2px}
+  .trend-up{color:var(--r-green)}.trend-dn{color:var(--r-red)}.trend-flat{color:var(--muted)}
+  /* coach */
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
     background:var(--ink);color:#fff;border:none;border-radius:8px;padding:12px 16px;
     font-size:14px;font-weight:600;cursor:pointer;width:100%;transition:transform .12s,background .2s}
@@ -135,6 +168,27 @@
   .modal .sheet{background:#fff;width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
   .modal h2{font-size:18px;margin-bottom:4px}
   .src-note{font-size:11px;color:var(--muted);text-align:center;margin:2px 0 14px}
+  /* Tooltips */
+  .tip-wrap{position:relative;display:inline-flex;align-items:center;gap:4px}
+  .tip-btn{background:none;border:none;padding:0;cursor:pointer;color:var(--muted);font-size:13px;line-height:1;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+  .tip-bubble{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.5;width:220px;z-index:30;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+  .tip-bubble.open{display:block}
+  .tip-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--ink)}
+  .tip-x{float:right;background:none;border:none;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;padding:0 0 0 8px;line-height:1}
+  /* Day detail modal */
+  .day-sheet .section{border-top:1px solid var(--line);padding:14px 0 6px}
+  .day-sheet h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .ex-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+  .ex-num{width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+  .ex-body{flex:1}
+  .ex-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .hydration-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+  .hydration-icon{font-size:20px;flex:none;margin-top:1px}
+  /* Load chart */
+  .load-bar-wrap{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .load-bar-bg{flex:1;height:12px;background:var(--line);border-radius:6px;overflow:hidden;position:relative}
+  .load-bar-fill{height:100%;border-radius:6px;transition:width .5s}
+  .load-opt{position:absolute;top:0;height:100%;background:rgba(0,0,0,.12);border-radius:6px}
 </style>
 </head>
 <body>
@@ -176,6 +230,12 @@
 
   <!-- ===== COMIDA / NUTRICIÓN ===== -->
   <section id="tab-comida" class="hidden"></section>
+
+  <!-- ===== SALUD ===== -->
+  <section id="tab-salud" class="hidden"></section>
+
+  <!-- tooltip overlay (shared, fixed position) -->
+  <div id="tipOverlay"><button id="tipClose" onclick="hideTip()">×</button><span id="tipContent"></span></div>
 </main>
 
 <nav>
@@ -187,8 +247,8 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Coach</button>
   <button data-tab="comida" onclick="go('comida')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3v7a3 3 0 003 3v8M7 3v6M10 3v6M18 3c-1.5 0-3 2-3 5s1 4 3 4v9"/></svg>Comida</button>
-  <button data-tab="carreras" onclick="go('carreras')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v18M5 4h13l-2 4 2 4H5"/></svg>Carreras</button>
+  <button data-tab="salud" onclick="go('salud')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Salud</button>
 </nav>
 
 <script>
@@ -200,32 +260,37 @@
 
 // ---------- SEED: snapshot real de Garmin (20 jun 2026) ----------
 const SEED = {
-  fetchedAt: "2026-06-20T11:00:00-06:00",
-  source: "demo",                       // "demo" | "live"
+  fetchedAt: "2026-06-21T17:42:00Z",
+  source: "demo",
   athlete: { name:"Sergio", age:32, weightKg:74.9, heightCm:173,
-             vo2:52, lthr:178, ftp:200, city:"Cartago" },
+             vo2:52, lthr:178, ftp:236, city:"Cartago" },
   today: {
-    readiness:10, readinessLevel:"POOR", readinessMsg:"Dejá que tu cuerpo se recupere",
-    recoveryMin:5607,                    // ~93 h
-    bodyBattery:14, sleepScore:89, sleepHrs:8.2, hrvWeekly:82, restingHr:48,
-    factors:{ sueno:88, recuperacion:10, carga:76, estres:53, hrv:100 }
+    readiness:7, readinessLevel:"POOR", readinessMsg:"Dejá que tu cuerpo se recupere",
+    recoveryMin:4576,
+    bodyBattery:61, sleepScore:83, sleepHrs:7.6, hrvWeekly:68, restingHr:54,
+    factors:{ sueno:76, recuperacion:10, carga:81, estres:44, hrv:100 }
   },
-  sleep:{ deepMin:103, lightMin:265, remMin:126, awake:0 },
-  bb7:[ {d:"Dom",v:56},{d:"Lun",v:89},{d:"Mar",v:63},{d:"Mié",v:89},
-        {d:"Jue",v:87},{d:"Vie",v:97},{d:"Sáb",v:94} ],
-  lastActivity:{ name:"Salida ruta (Agua Caliente)", date:"2026-06-20",
-    km:72.4, min:152, hrAvg:167, hrMax:199, elevM:544, watts:146, cad:72 },
+  sleep:{ deepMin:66, lightMin:289, remMin:104, awake:14 },
+  bb7:[ {d:"Lun",v:89},{d:"Mar",v:63},{d:"Mié",v:89},{d:"Jue",v:87},
+        {d:"Vie",v:97},{d:"Sáb",v:94},{d:"Dom",v:64} ],
+  lastActivity:{ name:"Agua Caliente – ruta", date:"2026-06-20",
+    km:72.4, min:152, hrAvg:167, hrMax:196, elevM:544, watts:145, cad:73,
+    np:212, trimp:345, tss:196 },
+  // Foco de carga Garmin 25 may–21 jun (imagen real)
+  loadFocus:{ aerobicLow:557, aerobicHigh:1361, anaerobic:635,
+    optLow:[600,900], optHigh:[700,1100], optAna:[200,500] },
   zones:[ {z:"Z1",r:"<120",name:"Recuperación",cls:"t-gray"},
           {z:"Z2",r:"120–139",name:"Base aeróbica",cls:"t-blue"},
           {z:"Z3",r:"140–161",name:"Tempo",cls:"t-green"},
           {z:"Z4",r:"162–178",name:"Umbral",cls:"t-yellow"},
           {z:"Z5",r:">178",name:"VO2máx",cls:"t-red"} ],
-  pzones:[ {z:"Z1",r:"<110",name:"Recuperación activa",cls:"t-gray"},
-           {z:"Z2",r:"110–150",name:"Resistencia aeróbica",cls:"t-blue"},
-           {z:"Z3",r:"150–180",name:"Tempo",cls:"t-green"},
-           {z:"Z4",r:"180–210",name:"Umbral (FTP ~200W)",cls:"t-yellow"},
-           {z:"Z5",r:"210–240",name:"VO2máx",cls:"t-red"},
-           {z:"Z6",r:">240",name:"Anaeróbico / sprint",cls:"t-violet"} ]
+  // FTP real desde intervals.icu: 236W
+  pzones:[ {z:"Z1",r:"<118",name:"Recuperación activa",cls:"t-gray"},
+           {z:"Z2",r:"118–165",name:"Resistencia aeróbica",cls:"t-blue"},
+           {z:"Z3",r:"165–189",name:"Tempo",cls:"t-green"},
+           {z:"Z4",r:"189–212",name:"Umbral (FTP 236W)",cls:"t-yellow"},
+           {z:"Z5",r:"212–259",name:"VO2máx",cls:"t-red"},
+           {z:"Z6",r:">259",name:"Anaeróbico / sprint",cls:"t-violet"} ]
 };
 
 // ---------- NUTRICIÓN (sistema de intercambios · Más Que Calorías) ----------
@@ -489,24 +554,32 @@ const NUTR_TIMING = {
 const STRENGTH = {
   A: { // Bloque 1 y 2: fuerza base
     name:"Fuerza base · 35–40min",
-    note:"2×/semana. Dejá al menos 1 día de descanso entre sesiones. Después de la bici o por separado.",
+    note:"2×/semana (Dom + Mié tarde). Sin equipamiento — solo tu peso y una silla.",
     exercises:[
       { name:"Sentadilla búlgara (split squat)", sets:3, reps:"10 c/pierna", rest:"90s",
-        tip:"Pie trasero en silla, rodilla delantera NO pasa la punta del pie. Bajá lento (3s), subí explosivo. Trabajás cuádriceps + glúteos = motor de la bici." },
+        tip:"Pie trasero en silla, rodilla delantera NO pasa la punta del pie. Bajá lento (3s), subí explosivo. Cuádriceps + glúteos = motor de la bici.",
+        yt:"https://www.youtube.com/shorts/5bFuGMGG0U0" },
       { name:"Peso muerto rumano (RDL)", sets:3, reps:"10", rest:"90s",
-        tip:"Con mancuernas o mochila cargada. Espalda recta, bisagra de cadera, sentís tirón en isquiotibiales. Clave para subidas y proteger la espalda en el Edge." },
+        tip:"Con mochila cargada o mancuernas. Espalda recta, bisagra de cadera, sentís tirón en isquiotibiales. Clave para subidas y proteger la espalda.",
+        yt:"https://www.youtube.com/watch?v=JCXUYuzwNrM" },
       { name:"Zancada lateral (lateral lunge)", sets:3, reps:"10 c/lado", rest:"60s",
-        tip:"Paso amplio al lado, bajás sobre ese pie, rodilla alineada. Activa aductores y estabilizadores de cadera — músculos que el ciclismo ignora." },
+        tip:"Paso amplio al lado, bajás sobre ese pie, rodilla alineada. Activa aductores — músculos que el ciclismo ignora.",
+        yt:"https://www.youtube.com/watch?v=7tTkbJiywRE" },
       { name:"Elevación de talones (calf raise)", sets:3, reps:"15", rest:"45s",
-        tip:"En un escalón, bajá hasta el fondo, subí hasta el tope. Lento en la bajada. Pantorrillas potentes = pedaleo más eficiente." },
+        tip:"En un escalón, bajá hasta el fondo, subí hasta el tope. Lento en la bajada. Pantorrillas = pedaleo más eficiente.",
+        yt:"https://www.youtube.com/watch?v=gwLzBJYoWlI" },
       { name:"Plancha frontal", sets:3, reps:"40s", rest:"30s",
-        tip:"Codos bajo los hombros, cuerpo en línea recta. NO dejes caer la cadera ni levantarla. Core estable = menos energía malgastada en la bici." },
+        tip:"Codos bajo los hombros, cuerpo en línea recta. NO dejes caer la cadera. Core estable = menos energía malgastada en la bici.",
+        yt:"https://www.youtube.com/watch?v=pSHjTRCQxIw" },
       { name:"Plancha lateral", sets:3, reps:"30s c/lado", rest:"30s",
-        tip:"Codo bajo el hombro, cadera arriba. Mirá al frente. Estabilizadores laterales que protegen la columna en rides largos." },
+        tip:"Codo bajo el hombro, cadera arriba. Mirá al frente. Estabilizadores laterales que protegen la columna en rides largos.",
+        yt:"https://www.youtube.com/watch?v=_rdfjFSFKMY" },
       { name:"Superman (extensión de espalda)", sets:3, reps:"12", rest:"30s",
-        tip:"Boca abajo, levantás brazos y piernas simultáneamente, aguantás 2s arriba. Erector espinal fuerte = no te duele la espalda después de 5h." },
+        tip:"Boca abajo, levantás brazos y piernas simultáneamente, aguantás 2s arriba. Espalda fuerte = no te duele después de 5h.",
+        yt:"https://www.youtube.com/watch?v=z6PJMT2y8GQ" },
       { name:"Flexiones de brazos", sets:3, reps:"10–15", rest:"60s",
-        tip:"Manos a ancho de hombros, cuerpo recto. Si es fácil, elevá los pies. Tren superior estable para aguantar posición aero." },
+        tip:"Manos a ancho de hombros, cuerpo recto. Si es fácil, elevá los pies. Tren superior estable para aguantar posición aero.",
+        yt:"https://www.youtube.com/watch?v=0pkjOk0EiAk" },
     ]
   },
   B: { // Cerca de competencia: activación, no fatiga
@@ -514,58 +587,118 @@ const STRENGTH = {
     note:"1×/semana, sin llegar al fallo. Mantener el estímulo sin acumular fatiga.",
     exercises:[
       { name:"Sentadilla con salto (jump squat)", sets:3, reps:"8", rest:"90s",
-        tip:"Bajás a media sentadilla y saltás lo más alto que podés. Activa el sistema neuromuscular para ataques y sprints." },
+        tip:"Bajás a media sentadilla y saltás lo más alto que podés. Activa el sistema neuromuscular para ataques y sprints.",
+        yt:"https://www.youtube.com/watch?v=A-cFYWvaHr0" },
       { name:"Zancada caminando", sets:2, reps:"12 c/pierna", rest:"60s",
-        tip:"Pasos grandes hacia adelante, rodilla casi toca el piso. Activa cadera y glúteos sin sobrecargar." },
+        tip:"Pasos grandes hacia adelante, rodilla casi toca el piso. Activa cadera y glúteos sin sobrecargar.",
+        yt:"https://www.youtube.com/watch?v=L8fvypPrzzs" },
       { name:"Plancha con toque de hombro", sets:2, reps:"10 c/lado", rest:"45s",
-        tip:"En posición de flexión, tocás el hombro contrario alternando. Core antirotatorio = pedaleo más eficiente." },
+        tip:"En posición de flexión, tocás el hombro contrario alternando. Core antirotatorio = pedaleo más eficiente.",
+        yt:"https://www.youtube.com/watch?v=LEZq7QcCR_Y" },
     ]
   }
 };
 
-// Plan de la semana con fuerza integrada
+// ---------- HIDRATACIÓN basada en evidencia para ciclistas en clima tropical ----------
+const HYDRATION = {
+  descanso:{
+    items:[
+      { icon:"💧", txt:"2–2.5L de agua durante el día (mínimo)", detail:"Costa Rica tiene temperatura y humedad alta incluso en días de descanso. Orina color amarillo pálido = bien hidratado." },
+      { icon:"🥥", txt:"1 agua de pipa = hidratación natural perfecta", detail:"Contiene sodio, potasio y magnesio naturalmente. Ideal como hidratante diario." },
+    ]
+  },
+  endurance:{
+    pre:[ { icon:"💧", txt:"500ml agua 2h antes", detail:"Permite absorción y va al baño antes de salir." },
+          { icon:"🥤", txt:"250ml agua o bebida deportiva 30min antes", detail:"Top-up final. Si es primera hora del día, podés agregar una pizca de sal." } ],
+    during:[ { icon:"🚴", txt:"500–600ml/hora (clima fresco) · 600–750ml/hora (calor)", detail:"Costa Rica puede llegar a 28°C+ durante el día. Si sudás mucho (ves sal en la ropa), aumentá." },
+             { icon:"⚡", txt:"Electrolitos cada 45min en rides >90min", detail:"1 pastilla Nuun, 1 sobre suero oral, o agua de pipa. El sodio es el más importante." },
+             { icon:"🥥", txt:"Agua de pipa en la ruta si podés conseguirla", detail:"Electrolitos naturales, fácil de conseguir en Costa Rica. Alternativa: bebida isotónica." } ],
+    post:[ { icon:"💧", txt:"500ml agua inmediatamente al bajar", detail:"Rehidratación inmediata. Si entrenaste >1h, agregá electrolitos." },
+           { icon:"📊", txt:"Objetivo: recuperar 1.5× el peso perdido en sudor", detail:"Ejemplo: si perdiste 500g (pesate antes y después), tomá 750ml en las siguientes 2 horas." } ]
+  },
+  calidad:{
+    pre:[ { icon:"💧", txt:"600ml agua 2h antes", detail:"Los intervalos de umbral demandan más que Z2. Llegás hidratado o no podés mantener la potencia." },
+          { icon:"☕", txt:"Café 45min antes (opcional)", detail:"200mg cafeína mejora la potencia en intervalos hasta un 3-5% en ciclistas entrenados. Solo si ya lo usás habitualmente." } ],
+    during:[ { icon:"🚴", txt:"750ml/hora mínimo + electrolitos cada 30min", detail:"Los intervalos generan más calor corporal. Botella de 750ml cada hora en el KICKR." },
+             { icon:"⚡", txt:"Suero oral o Nuun cada 30min", detail:"En sesiones de alta intensidad el cuerpo pierde sodio más rápido." } ],
+    post:[ { icon:"💧", txt:"750ml–1L inmediatamente post-sesión", detail:"El KICKR genera más calor que salir a la ruta por la falta de viento." },
+           { icon:"🥤", txt:"Bebida de recuperación en los primeros 30min", detail:"300ml leche + banano + proteína. El líquido también ayuda a transportar la proteína al músculo." } ]
+  },
+  largo:{
+    pre:[ { icon:"💧", txt:"Hidratación desde la noche anterior — 500ml extra", detail:"El Vegabikes de 3-4h empieza con el tanque que llenaste ayer." },
+          { icon:"🥤", txt:"500ml bebida isotónica en la mañana antes de salir", detail:"Con glucosa y sodio. Iniciás con el sistema digestivo ya activado." } ],
+    during:[ { icon:"🚴", txt:"750ml/hora mínimo — en calor hasta 1L/hora", detail:"Para 4h de ride: llevá mínimo 3L. Sabés donde podés rellenar en la ruta." },
+             { icon:"⚡", txt:"Electrolitos cada 30min DESDE el inicio (no esperés a tener sed)", detail:"La sed es señal de que ya estás un 2% deshidratado, lo que reduce la potencia hasta 10%." },
+             { icon:"🥥", txt:"Agua de pipa en los descansos si encontrás", detail:"Perfecta para reposición natural en el Vegabikes. Alternativa: Gatorade / Powerade diluido al 50%." },
+             { icon:"🧂", txt:"Pastilla de sal o suero oral en rides >3h en calor", detail:"Hiponatremia (sodio bajo) = calambres + mareos. En Costa Rica con calor, es real." } ],
+    post:[ { icon:"💧", txt:"1L agua inmediatamente + electrolitos", detail:"Rehidratación urgente. Si orinás oscuro 2h después, bebiste poco." },
+           { icon:"📊", txt:"Seguí tomando agua las siguientes 4 horas", detail:"La rehidratación completa después de 4h de ride tarda horas. No solo bebés en el momento." } ]
+  }
+};
+
+// Ventanas de entrenamiento por día de semana
+function trainWindows(wd, iso){
+  const pmBusy=(SCHED.busyPM||[]).includes(iso);
+  if(wd===2) return [];                                  // martes off
+  if(wd===1) return [{t:"5:30–6:30am",dur:60,pref:"am"}];// lunes solo mañana
+  if(wd===6) return [{t:"6:00am",dur:240,pref:"group"}]; // sábado vegabikes
+  if(pmBusy) return [{t:"5:30–6:30am",dur:60,pref:"am"}];
+  if(wd===0) return [{t:"7:00–9:00am",dur:120,pref:"am"}];
+  return [{t:"5:30–7:00am",dur:90,pref:"am"},{t:"6:00–7:30pm",dur:90,pref:"pm"}];
+}
+
+// Plan de la semana con fuerza, KICKR y horarios
 function dayPlan(date){
   const iso=isoOf(date), wd=date.getDay(), ph=phaseFor(iso);
+  const wins=trainWindows(wd,iso);
+  const bestWin=wins.length?wins[wins.length>1?1:0]:null; // prefer PM for KICKR quality
+  const timeStr=bestWin?bestWin.t:"Sin slot";
+
   // carreras
   for(const r of RACES){
     const end=r.date2||r.date;
-    if(iso>=r.date && iso<=end){
-      return { title:r.name, sub:(r.prio==="A"?"CARRERA A · ":"")+(r.type), cls:"t-red", locked:true };
-    }
+    if(iso>=r.date && iso<=end)
+      return { title:r.name, sub:(r.prio==="A"?"CARRERA A · ":"")+(r.type), cls:"t-red", locked:true, type:"race", time:r.date };
   }
   // día bloqueado por calendario
   if((SCHED.busyAll||[]).includes(iso)){
     const ev=(SCHED.events||[]).find(e=>e.date===iso && e.allDay);
-    return { title:"Bloqueado", sub:(ev?ev.summary+" · ":"")+"calendario", cls:"t-gray" };
+    return { title:"Bloqueado", sub:(ev?ev.summary+" · ":"")+"calendario", cls:"t-gray", type:"off", time:null };
   }
   // martes oficina
-  if(wd===2 && SCHED.officeTue) return { title:"Descanso", sub:"Oficina — sin entreno", cls:"t-gray" };
+  if(wd===2 && SCHED.officeTue)
+    return { title:"Descanso", sub:"Oficina — sin entreno", cls:"t-gray", type:"off", time:null };
   // sábado grupeta
-  if(wd===6 && SCHED.satGroup){
-    return { title:"Vegabikes (grupeta)", sub:"Día duro · empujá en la rueda", cls:"t-yellow" };
+  if(wd===6 && SCHED.satGroup)
+    return { title:"Vegabikes (grupeta)", sub:"Salida 6:00am · día duro", cls:"t-yellow", type:"vegabikes", time:"6:00am" };
+
+  // domingo: fuerza en casa O recuperación
+  if(wd===0){
+    if(ph.name.startsWith("Recuper"))
+      return { title:"Descanso activo", sub:"Caminata suave 30min · "+timeStr, cls:"t-gray", type:"rest", time:timeStr };
+    return { title:"Fuerza base · 35min", sub:"En casa · "+timeStr, cls:"t-violet", type:"strength", time:timeStr };
   }
-  const pmBusy = (SCHED.busyPM||[]).includes(iso);
-  const win = wd===1 ? "5:30–6:30am (baile en la noche)"
-            : pmBusy ? "Solo mañana (cita en la tarde)"
-            : "Mañana o tarde";
-  // fuerza: miércoles (bici al amanecer + fuerza tarde) o jueves
+  // lunes: Z1-Z2 suave (solo mañana)
+  if(wd===1)
+    return { title:"KICKR · Z1–Z2 suave · 45min", sub:"5:30–6:15am (antes del baile)", cls:"t-blue", type:"kickr-easy", time:"5:30–6:15am" };
+
+  // miércoles: Z2 bici + fuerza tarde (o solo Z2 en recuperación)
   if(wd===3){
     if(ph.name.startsWith("Recuper")||ph.name.startsWith("Chirripó"))
-      return { title:"Z2 suave · 60min", sub:win+" · FC 120–135", cls:"t-blue" };
-    return { title:"Bici Z2 + Fuerza base", sub:win+" · 60min bici AM · fuerza PM 35min", cls:"t-violet" };
+      return { title:"KICKR · Z2 suave · 60min", sub:timeStr+" · FC 120–135", cls:"t-blue", type:"kickr-easy", time:timeStr };
+    return { title:"KICKR Z2 · 60min + Fuerza 35min", sub:"AM bici · PM fuerza en casa", cls:"t-violet", type:"kickr-strength", time:"5:30–7:00am / 6:00pm" };
   }
+  // jueves: calidad o Z2
   if(wd===4){
     if(ph.name.startsWith("Específico")||ph.name.startsWith("Pico")||ph.name.startsWith("Build"))
-      return { title:"Intervalos umbral · 4×8min Z4", sub:win+" · FC 162–178", cls:"t-yellow" };
-    return { title:"Z2 endurance · 75min", sub:win+" · cadencia 90–100rpm", cls:"t-green" };
+      return { title:"KICKR · Umbral 4×8min Z4", sub:timeStr+" · FC 162–178 / 189–212W", cls:"t-yellow", type:"kickr-quality", time:timeStr };
+    return { title:"KICKR · Z2 endurance · 75min", sub:timeStr+" · cadencia 90–100rpm", cls:"t-green", type:"kickr-easy", time:timeStr };
   }
-  if(wd===5) return { title:"Suave Z1–Z2 · 45min", sub:win+" · piernas frescas para el sábado", cls:"t-blue" };
-  if(wd===0){
-    if(ph.name.startsWith("Recuper")) return { title:"Descanso o caminata", sub:"Recuperación activa", cls:"t-gray" };
-    return { title:"Fuerza base · 35min", sub:"En casa · rutina de piernas y core", cls:"t-violet" };
-  }
-  if(wd===1) return { title:"Z1–Z2 suave · 45min", sub:win, cls:"t-blue" };
-  return { title:"Z2 base · 60min", sub:win, cls:"t-green" };
+  // viernes: suave pre-sábado
+  if(wd===5)
+    return { title:"KICKR · Suave Z1–Z2 · 45min", sub:timeStr+" · piernas frescas para mañana", cls:"t-blue", type:"kickr-easy", time:timeStr };
+
+  return { title:"Z2 base · 60min", sub:timeStr, cls:"t-green", type:"easy", time:timeStr };
 }
 
 // ===================== RENDER: HOY ====================================
@@ -605,11 +738,12 @@ function renderHoy(){
       </div>
     </div>
 
-    <div class="grid4" style="margin-bottom:14px">
-      ${metric("Body Battery", t.bodyBattery, "/100")}
-      ${metric("Sueño", t.sleepScore, " · "+t.sleepHrs+"h")}
-      ${metric("HRV semanal", t.hrvWeekly, " ms")}
-      ${metric("FC reposo", t.restingHr, " bpm")}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600">Indicadores</span>
+      <button class="btn ghost sm" onclick="openMetricsEditor()" style="font-size:12px;padding:6px 10px">⚙ Editar</button>
+    </div>
+    <div style="display:grid;grid-template-columns:${ACTIVE_METRICS.length>2?'1fr 1fr':'1fr'};gap:10px;margin-bottom:14px">
+      ${ACTIVE_METRICS.map(k=>mcard(k)).join('')}
     </div>
 
     <div class="card">
@@ -646,6 +780,7 @@ function renderHoy(){
       ${a.hrAvg>160?`<div style="margin-top:10px"><span class="tag t-red">FC media en umbral</span> <span class="muted" style="font-size:12.5px">— por esto cayó tu readiness. El sábado va duro; el resto de la semana, suave.</span></div>`:""}
     </div>
 
+    ${loadChart()}
     <div class="src-note">${DATA.source==="live"?"Datos en vivo · actualizado "+fmtLocalTime(DATA.fetchedAt):"Datos demo · snapshot real del 20 jun"}</div>
   `;
 }
@@ -668,12 +803,13 @@ function renderPlan(){
   for(let i=0;i<7;i++){
     const d=addDays(t0,i), iso=isoOf(d), isToday=(i===0);
     const pl=dayPlan(d);
-    days += `<div class="day ${isToday?"today":""}">
+    days += `<div class="day ${isToday?"today":""}" onclick="openDayDetail('${iso}')" style="cursor:pointer">
       <div class="d-date"><div class="d-dow">${DOW[d.getDay()]}</div><div class="d-num">${d.getDate()}</div></div>
       <div class="d-main">
         <div class="d-title">${esc(pl.title)} ${isToday?'<span class="tag t-blue" style="vertical-align:middle">Hoy</span>':''}</div>
-        <div class="d-sub">${esc(pl.sub||"")}</div>
+        <div class="d-sub">${pl.time?'⏰ '+esc(pl.time)+' · ':''} ${esc(pl.sub||"")}</div>
       </div>
+      <div style="color:var(--muted);font-size:18px;flex:none;align-self:center">›</div>
     </div>`;
   }
   document.getElementById("tab-plan").innerHTML = `
@@ -691,29 +827,28 @@ function renderPlan(){
       <h3>Próximos 7 días</h3>
       ${days}
     </div>
-    <div class="card" id="strengthCard">
-      <h3>Fuerza complementaria · en casa</h3>
-      <div class="muted" style="font-size:13px;margin-bottom:12px">2×/semana (Dom + Mié tarde). 35–40 min. Sin equipamiento — solo tu peso y una silla.</div>
+    ${collap('fuerza','🏋️ Fuerza complementaria · en casa',`
+      <div class="muted" style="font-size:13px;margin-bottom:12px">2×/semana (Dom + Mié tarde). Sin equipamiento.</div>
       ${STRENGTH.A.exercises.map((e,i)=>`
         <div style="padding:11px 0;border-bottom:1px solid var(--line)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <b style="font-size:14px">${i+1}. ${esc(e.name)}</b>
             <span class="mono muted" style="font-size:11px;white-space:nowrap">${esc(e.sets)}×${esc(e.reps)}</span>
           </div>
-          <div style="display:flex;gap:8px;margin-top:4px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
             <span class="tag t-gray">Descanso ${esc(e.rest)}</span>
+            <a href="${esc(e.yt)}" target="_blank" style="background:var(--r-red-bg);color:var(--r-red);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:9999px;font-weight:600;text-decoration:none">▶ Video</a>
           </div>
           <div class="muted" style="font-size:12.5px;margin-top:5px;line-height:1.5">${esc(e.tip)}</div>
         </div>`).join("")}
-      <div class="muted" style="font-size:12px;margin-top:10px">Última semana antes de carrera → pasás a Activación 20min (3 ejercicios, sin llegar al fallo).</div>
-    </div>
+      <div class="muted" style="font-size:12px;margin-top:10px">Última semana → Activación 20min.</div>
+    `,false)}
 
-    <div class="card">
-      <h3>🔥 Antes de cada ride · calentamiento dinámico</h3>
+    ${collap('prewarm','🔥 Calentamiento dinámico · antes de cada ride',`
       <div style="background:var(--r-blue-bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--r-blue)">
-        <b>¿Por qué NO estiramiento estático antes?</b> Estudios del Journal of Sports Medicine muestran que mantener un estiramiento 30s antes reduce la potencia hasta un 8% y aumenta el riesgo de lesión. Usás movimientos dinámicos que activan sin inhibir.
+        El estiramiento estático antes reduce la potencia hasta un 8%. Usás movimientos dinámicos que activan sin inhibir.
       </div>
-      <div class="muted" style="font-size:12px;margin-bottom:10px">6–8 minutos. Hacelo antes de subir a la bici.</div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">6–8 minutos antes de subir a la bici.</div>
       ${STRETCH.pre.items.map((s,i)=>`
         <div style="padding:10px 0;border-bottom:1px solid var(--line)">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
@@ -722,14 +857,13 @@ function renderPlan(){
           </div>
           <div class="muted" style="font-size:12.5px;margin-top:5px;line-height:1.5">${esc(s.how)}</div>
         </div>`).join("")}
-    </div>
+    `,false)}
 
-    <div class="card">
-      <h3>🧊 Después de cada ride · estiramiento estático</h3>
+    ${collap('postwarm','🧊 Estiramiento estático · después de cada ride',`
       <div style="background:var(--r-green-bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--r-green)">
-        Con el músculo caliente el tejido conectivo es más elástico. Hold de 30–45s por posición. Mínimo 3–4×/semana. Las lesiones más comunes del ciclista (IT band, rodilla, espalda baja) se previenen con esto.
+        Con el músculo caliente el estiramiento mejora el rango articular. Hold 30–45s por posición. Mínimo 3–4×/semana.
       </div>
-      <div class="muted" style="font-size:12px;margin-bottom:10px">15–20 minutos. Podés hacerlo mientras esperás que se caliente la comida post-ride.</div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">15–20 minutos. Podés hacerlo mientras esperás la comida.</div>
       ${STRETCH.post.items.map((s,i)=>`
         <div style="padding:10px 0;border-bottom:1px solid var(--line)">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
@@ -738,86 +872,22 @@ function renderPlan(){
           </div>
           <div class="muted" style="font-size:12.5px;margin-top:5px;line-height:1.5">${esc(s.how)}</div>
         </div>`).join("")}
-    </div>
-    <div class="card">
-      <h3>Zonas cardíacas · FC (LTHR ${DATA.athlete.lthr})</h3>
+    `,false)}
+
+    ${collap('zones','📊 Zonas de entrenamiento',`
+      <div class="muted" style="font-size:12px;margin-bottom:10px">LTHR ${DATA.athlete.lthr}bpm · FTP ${DATA.athlete.ftp}W</div>
       ${DATA.zones.map(z=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px">
         <span><span class="tag ${z.cls}">${z.z}</span> <span style="margin-left:6px">${z.name}</span></span>
         <span class="mono muted">${z.r} bpm</span></div>`).join("")}
-      <div class="muted" style="font-size:12px;margin-top:8px">Cuando el plan dice "Z2", es esto: pulso, no potencia.</div>
-    </div>
-    <div class="card">
-      <h3>Zonas de potencia · W (FTP ${DATA.athlete.ftp})</h3>
       ${DATA.pzones.map(z=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px">
         <span><span class="tag ${z.cls}">${z.z}</span> <span style="margin-left:6px">${z.name}</span></span>
         <span class="mono muted">${z.r} W</span></div>`).join("")}
-      <div class="muted" style="font-size:12px;margin-top:8px">Referencia para el Edge. Tu FTP estimado es ${DATA.athlete.ftp} W (~2.43 W/kg).</div>
-    </div>
+    `,false)}
     <div class="src-note">El plan se ajusta solo cada día con tu readiness, recovery, HRV y Body Battery.</div>
   `;
 }
 
-// ===================== RENDER: CARRERAS ===============================
-function renderCarreras(){
-  const t0=today();
-  const sorted=[...RACES].sort((a,b)=>a.date<b.date?-1:1);
-  const rows=sorted.map(r=>{
-    const cd=daysBetween(r.date,t0);
-    const pc={A:"t-red",B:"t-yellow",C:"t-gray"}[r.prio]||"t-gray";
-    const meta=[ r.type, r.km?r.km+" km":null, r.elev?r.elev+" m":null ].filter(Boolean).join(" · ");
-    return `<div class="race">
-      <div class="r-cd"><div class="r-days">${cd<0?"—":cd}</div><div class="r-dlbl">${cd<0?"pasó":"días"}</div></div>
-      <div class="r-main">
-        <div class="r-name">${esc(r.name)} <span class="tag ${pc}">${r.prio}</span></div>
-        <div class="r-meta">${fmtRaceDate(r)} · ${esc(meta)}</div>
-        ${r.note?`<div class="r-meta" style="margin-top:3px">${esc(r.note)}</div>`:""}
-      </div>
-      <button class="r-del" onclick="delRace('${r.id}')" aria-label="Borrar">&times;</button>
-    </div>`;
-  }).join("");
-  document.getElementById("tab-carreras").innerHTML = `
-    <div class="card"><h3>Calendario de carreras</h3>${rows}</div>
-    <button class="btn ghost" onclick="openRaceModal()">+ Agregar carrera</button>
-    <div class="src-note">Las carreras A definen la periodización. Agregá las tuyas y el plan se reorganiza.</div>
-  `;
-}
-function fmtRaceDate(r){
-  const a=parseISO(r.date); let s=a.getDate()+" "+MON[a.getMonth()];
-  if(r.date2){ const b=parseISO(r.date2); s+="–"+b.getDate()+" "+MON[b.getMonth()]; }
-  return s;
-}
-function delRace(id){ if(!confirm("¿Borrar esta carrera?"))return; RACES=RACES.filter(r=>r.id!==id); saveRaces(); renderCarreras(); }
-function openRaceModal(){
-  const m=document.createElement("div"); m.className="modal"; m.id="raceModal";
-  m.innerHTML=`<div class="sheet">
-    <h2>Nueva carrera</h2>
-    <label>Nombre</label><input id="f-name" placeholder="Ej: Vuelta a Cartago">
-    <label>Fecha</label><input id="f-date" type="date" value="2026-08-01">
-    <div class="grid2"><div><label>Tipo</label><select id="f-type"><option>Ruta</option><option>MTB</option><option>Gravel</option><option>Hiking</option></select></div>
-    <div><label>Prioridad</label><select id="f-prio"><option value="A">A — objetivo</option><option value="B">B — importante</option><option value="C" selected>C — entreno</option></select></div></div>
-    <div class="grid2"><div><label>Distancia (km)</label><input id="f-km" type="number" inputmode="decimal" placeholder="opcional"></div>
-    <div><label>Desnivel (m)</label><input id="f-elev" type="number" inputmode="numeric" placeholder="opcional"></div></div>
-    <label>Nota</label><input id="f-note" placeholder="opcional">
-    <div class="row" style="margin-top:16px;gap:10px">
-      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn" onclick="addRace()">Guardar</button>
-    </div></div>`;
-  m.addEventListener("click",e=>{ if(e.target===m) closeModal(); });
-  document.body.appendChild(m);
-}
-function closeModal(){ const m=document.getElementById("raceModal"); if(m) m.remove(); }
-function addRace(){
-  const name=document.getElementById("f-name").value.trim();
-  if(!name){ alert("Poné un nombre"); return; }
-  RACES.push({ id:"u"+Date.now(), name,
-    date:document.getElementById("f-date").value,
-    type:document.getElementById("f-type").value,
-    prio:document.getElementById("f-prio").value,
-    km: parseFloat(document.getElementById("f-km").value)||null,
-    elev: parseInt(document.getElementById("f-elev").value)||null,
-    note: document.getElementById("f-note").value.trim()||null });
-  saveRaces(); closeModal(); renderCarreras();
-}
+
 
 // ===================== COMIDA / NUTRICIÓN =============================
 function nutritionToday(){
@@ -838,6 +908,7 @@ function macroLine(ex){ const m=nMacros(ex);
 
 function renderComida(){
   const key=nutritionToday(), dt=NUTR.dayTypes[key], g=NUTR.goal;
+  const hy=HYDRATION[key]||HYDRATION.descanso;
   const cards=Object.entries(NUTR.dayTypes).map(([k,d])=>{
     const on=(k===key);
     return `<div class="card" style="${on?'border-color:#d9c7a3;background:#FDFBF5':''}">
@@ -916,6 +987,16 @@ function renderComida(){
     <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 10px">Intercambios por tipo de día</h3>
     ${cards}
 
+    <div class="card">
+      <h3>💧 Hidratación · ${dt.name}</h3>
+      ${(hy.pre||[]).length ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Antes</div>
+        ${(hy.pre||[]).map(h=>`<div class="hydration-row"><span class="hydration-icon">${h.icon}</span><div><b style="font-size:13.5px">${esc(h.txt)}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(h.detail)}</div></div></div>`).join("")}` : ""}
+      ${(hy.during||hy.items||[]).length ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 8px">Durante</div>
+        ${(hy.during||hy.items||[]).map(h=>`<div class="hydration-row"><span class="hydration-icon">${h.icon}</span><div><b style="font-size:13.5px">${esc(h.txt)}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(h.detail)}</div></div></div>`).join("")}` : ""}
+      ${(hy.post||[]).length ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 8px">Después</div>
+        ${(hy.post||[]).map(h=>`<div class="hydration-row"><span class="hydration-icon">${h.icon}</span><div><b style="font-size:13.5px">${esc(h.txt)}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(h.detail)}</div></div></div>`).join("")}` : ""}
+    </div>
+
     <button class="btn ghost" onclick="openNutrModal()">Ajustar mis intercambios</button>
     <div class="src-note">Base estimada de tu InBody y carga de entreno. Cuando tengas la prescripción de tu nutricionista, tocá "Ajustar" y meté los números reales.</div>
   `;
@@ -952,234 +1033,493 @@ function saveNutr(){
   closeNutr(); renderComida();
 }
 
-// ===================== COACH (Claude vía Puter) =======================
-let chatHistory=[];
-const QUICK=["¿Debo entrenar hoy?","¿Qué desayuno hoy?","Plan para el sábado con Vegabikes","¿Cómo llego bien al Cerro?"];
-function renderQuick(){ document.getElementById("quickQs").innerHTML =
-  QUICK.map(q=>`<button onclick="ask(this.textContent)">${esc(q)}</button>`).join(""); }
-
-function coachSystemPrompt(){
-  const t=DATA.today, a=DATA.athlete, la=DATA.lastActivity;
-  const racesTxt=RACES.map(r=>`- ${r.name} (${r.prio}) ${fmtRaceDate(r)} ${r.type} ${r.km?r.km+'km':''} ${r.elev?r.elev+'m':''}`).join('\n');
-  const dataTag=DATA.source==="live"?`DATOS EN VIVO (robot sincronizó a las ${fmtLocalTime(DATA.fetchedAt)})`:"DATOS (snapshot demo)";
-  return `Sos el coach de ciclismo personal de ${a.name}. Español tico, directo, cálido, concreto. Consejos accionables y breves.
-
-IMPORTANTE: Tenés los datos reales de Garmin de ${a.name} EMBEBIDOS ACA ABAJO. Los sincroniza un robot automático desde su Fénix 7X cada 4 horas. Cuando te pregunten por sus datos, mostrálos directamente. NUNCA digas que no tenés acceso a Garmin — ya tenés los datos en este mismo prompt.
-
-PERFIL:
-- Peso ${a.weightKg}kg, Altura ${a.heightCm}cm, Edad ${a.age} años, ${a.city} Costa Rica
-- VO2máx ${a.vo2} ml/kg/min, LTHR ${a.lthr} bpm, FTP ~${a.ftp}W (${(a.ftp/a.weightKg).toFixed(2)} W/kg)
-- Zonas FC: Z1 <120 / Z2 120-139 / Z3 140-161 / Z4 162-178 / Z5 >178
-- Zonas potencia: Z1 <110W / Z2 110-150W / Z3 150-180W / Z4 180-210W / Z5 210-240W
-
-${dataTag}:
-- Training Readiness: ${t.readiness}/100 ("${t.readinessMsg}")
-- Recuperación pendiente: ${fmtRecovery(t.recoveryMin||0)}
-- Body Battery: ${t.bodyBattery}/100
-- Sueño: score ${t.sleepScore}/100 / ${t.sleepHrs}h
-- HRV semanal: ${t.hrvWeekly} ms
-- FC reposo: ${t.restingHr} bpm
-- Última salida: ${la.name} / ${la.km}km / ${Math.floor(la.min/60)}h${String(la.min%60).padStart(2,'0')} / FC media ${la.hrAvg} (máx ${la.hrMax}) / ${la.watts}W / cadencia ${la.cad}rpm
-
-HORARIO: Martes=oficina(no entrena). Lunes=baile 19:30 (solo 5:30-6:30am). Sábados=Vegabikes grupeta duro (FIJO, nunca se salta).
-
-CARRERAS:
-${racesTxt}
-
-PROBLEMAS: (1) zona gris 74% en Z3-Z4 (2) cadencia 69-76rpm quiere 90-100 (3) gap FTP/VO2máx (4) días duros seguidos.
-
-NUTRICIÓN (Más Que Calorías): ${NUTR.goal.pesoActual}kg meta ${NUTR.goal.pesoIdeal}kg, grasa ${NUTR.goal.pgc}%, TMB ${NUTR.goal.tmb}kcal. Hoy día tipo "${nutritionToday()}" = ${JSON.stringify(NUTR.dayTypes[nutritionToday()].ex)}. Rides largos: 60-90g carbo/h. Post-ride: carbo+proteína en 45min. Productos CR: yogurt Protein Power, avena, pechuga, tortilla maíz, frijoles, banano, aguacate.
-
-PRINCIPIOS: Readiness<20 o recovery>60h = descanso total aunque quiera entrenar. Días fáciles FC<135 de verdad. Polarizá real. Periodizá hacia Cerro (25-26 jul) y Caribe (17 oct). Sé honesto si algo es mala idea.`;
+// ===================== TOOLTIP (fixed overlay — never clips) ===========
+function tip(label, def){
+  return `${esc(label)}<button class="tip-btn" data-tip="${esc(def)}" onclick="showTip(this.dataset.tip)" aria-label="Info">i</button>`;
 }
+function showTip(text){
+  document.getElementById('tipContent').textContent=text;
+  document.getElementById('tipOverlay').classList.add('show');
+}
+function hideTip(){ document.getElementById('tipOverlay').classList.remove('show'); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.tip-btn')&&!e.target.closest('#tipOverlay')) hideTip(); });
 
-async function ensurePuter(){
-  if(!window.puter){ return false; }
-  try{
-    if(!(await puter.auth.isSignedIn())){ await puter.auth.signIn(); }
-    return await puter.auth.isSignedIn();
-  }catch(e){ return false; }
+// ===================== COLLAPSIBLE CARDS ==============================
+function toggleCol(id){
+  const b=document.getElementById('cb_'+id), a=document.getElementById('ca_'+id);
+  const open=b.style.display!=='none';
+  b.style.display=open?'none':'block';
+  if(a) a.style.transform=open?'rotate(0)':'rotate(180deg)';
+  lsSet('col_'+id, open?'0':'1');
 }
-
-function addMsg(role,text){
-  const el=document.createElement("div"); el.className="msg "+role;
-  if(role==="a"||role==="u") el.textContent=text; else el.innerHTML=text;
-  document.getElementById("chat").appendChild(el);
-  el.scrollIntoView({behavior:"smooth",block:"end"});
-  return el;
-}
-function setCoachStatus(s){ document.getElementById("coachStatus").textContent=s; }
-
-async function ask(text){
-  text=(text||document.getElementById("chatInput").value).trim();
-  if(!text) return;
-  document.getElementById("chatInput").value="";
-  addMsg("u",text);
-  const ok=await ensurePuter();
-  if(!ok){ addMsg("sys","Necesitás iniciar sesión en Puter para usar el coach. En la versión publicada aparece una ventana para conectar (es gratis, una sola vez)."); return; }
-  setCoachStatus("Coach Claude · conectado");
-  const typing=addMsg("a",""); typing.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
-  chatHistory.push({role:"user",content:text});
-  try{
-    // IMPORTANTE: Puter.js v2 requiere el system prompt como opción, NO como rol en messages
-    const resp=await puter.ai.chat(
-      chatHistory,
-      { model:"claude-sonnet-4-6", system: coachSystemPrompt() }
-    );
-    const out=extractText(resp);
-    typing.innerHTML=renderMd(out);
-    chatHistory.push({role:"assistant",content:out});
-  }catch(e){
-    typing.classList.remove("a"); typing.className="msg sys";
-    typing.textContent="No pude conectar con el coach. Revisá tu sesión de Puter e intentá de nuevo. ("+String(e).slice(0,80)+")";
-  }
-}
-function renderMd(text){
-  // Tablas markdown → HTML
-  const lines = text.split('\n');
-  let html = '', inTable = false, tableRows = [];
-  for(let i=0; i<lines.length; i++){
-    const l = lines[i];
-    if(l.trim().startsWith('|') && l.trim().endsWith('|')){
-      if(!inTable){ inTable=true; tableRows=[]; }
-      tableRows.push(l.trim().slice(1,-1).split('|').map(c=>c.trim()));
-    } else {
-      if(inTable){
-        // flush table
-        const head=tableRows[0], body=tableRows.slice(2);
-        html+=`<div style="overflow-x:auto;margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr>${head.map(c=>`<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--line);font-weight:600">${esc(c)}</th>`).join('')}</tr></thead>
-          <tbody>${body.map(row=>`<tr>${row.map(c=>`<td style="padding:6px 8px;border-bottom:1px solid var(--line)">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
-        </table></div>`;
-        inTable=false; tableRows=[];
-      }
-      // Headers
-      let ln = l.replace(/^### (.+)/, '<b style="font-size:14px;display:block;margin-top:12px;margin-bottom:4px">$1</b>')
-                .replace(/^## (.+)/, '<b style="font-size:15px;display:block;margin-top:14px;margin-bottom:5px">$1</b>')
-                .replace(/^# (.+)/, '<b style="font-size:16px;display:block;margin-top:16px;margin-bottom:6px">$1</b>')
-                .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
-                .replace(/\*(.+?)\*/g,'<i>$1</i>')
-                .replace(/^[-•]\s+(.+)/, '<div style="display:flex;gap:6px;margin:3px 0"><span>•</span><span>$1</span></div>')
-                .replace(/^(\d+)\.\s+(.+)/, '<div style="display:flex;gap:6px;margin:3px 0"><span style="color:var(--muted)">$1.</span><span>$2</span></div>');
-      if(l.trim()==='---'||l.trim()==='—') ln='<hr style="border:none;border-top:1px solid var(--line);margin:10px 0">';
-      html += (ln===l ? esc(l) : ln) + (l.trim()==='' ? '<br>' : '\n');
-    }
-  }
-  if(inTable){
-    const head=tableRows[0], body=tableRows.slice(2);
-    html+=`<div style="overflow-x:auto;margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr>${head.map(c=>`<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--line);font-weight:600">${esc(c)}</th>`).join('')}</tr></thead>
-      <tbody>${body.map(row=>`<tr>${row.map(c=>`<td style="padding:6px 8px;border-bottom:1px solid var(--line)">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></div>`;
-  }
-  return html;
-}
-function extractText(resp){
-  try{
-    if(typeof resp==="string") return resp;
-    if(resp.message&&resp.message.content){
-      const c=resp.message.content;
-      if(typeof c==="string") return c;
-      if(Array.isArray(c)) return c.map(b=>b.text||"").join("");
-    }
-    if(resp.text) return resp.text;
-    if(resp.content) return Array.isArray(resp.content)?resp.content.map(b=>b.text||"").join(""):resp.content;
-  }catch(e){}
-  return "(respuesta vacía)";
-}
-
-// ===================== NAV ============================================
-const TABS={ hoy:["Hoy",renderHoy], plan:["Plan",renderPlan], coach:["Coach",null], comida:["Comida",renderComida], carreras:["Carreras",renderCarreras] };
-let CURRENT="hoy";
-function go(tab){
-  CURRENT=tab;
-  for(const k in TABS){
-    const sec=document.getElementById("tab-"+k);
-    sec.classList.toggle("hidden", k!==tab);
-    if(k===tab) sec.classList.add("fade");
-  }
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
-  document.getElementById("hdrTitle").textContent=TABS[tab][0];
-  if(TABS[tab][1]) TABS[tab][1]();
-}
-
-// ===================== AJUSTES / REFRESCAR / PWA =====================
-function toast(msg){
-  const el=document.createElement("div"); el.textContent=msg;
-  el.style.cssText="position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1F2421;color:#fff;padding:10px 16px;border-radius:9999px;font-size:13px;z-index:60;max-width:90%;text-align:center";
-  document.body.appendChild(el); setTimeout(()=>el.remove(),2600);
-}
-function rerender(){ if(TABS[CURRENT] && TABS[CURRENT][1]) TABS[CURRENT][1](); }
-
-async function doRefresh(){
-  const btn=document.getElementById("refreshBtn");
-  btn.style.opacity="0.4";
-  btn.style.pointerEvents="none";
-  const r=await fetchLive();
-  initHeader();
-  rerender();
-  btn.style.opacity="";
-  btn.style.pointerEvents="";
-  // limpiar historial del coach para que use el contexto fresco
-  if(r.ok){ chatHistory=[]; }
-  const msg=r.ok
-    ? "✓ Actualizado · "+fmtLocalTime(DATA.fetchedAt)
-    : (r.reason==="nopass" ? "Poné tu frase en Ajustes ⚙" : "Sin datos nuevos — usando demo");
-  toast(msg);
-}
-
-function openSettings(){
-  const pass=lsGet("coach_pass")||"";
-  const src=DATA.source==="live" ? "En vivo · "+fmtLocalTime(DATA.fetchedAt) : "Demo (snapshot)";
-  const m=document.createElement("div"); m.className="modal"; m.id="setModal";
-  m.innerHTML=`<div class="sheet">
-    <h2>Ajustes</h2>
-    <div class="muted" style="font-size:12.5px;margin-bottom:12px">Fuente de datos: <b style="color:var(--ink)">${esc(src)}</b></div>
-    <label>Frase para descifrar tus datos</label>
-    <input id="set-pass" type="password" value="${esc(pass)}" placeholder="la misma frase del robot (DATA_PASSPHRASE)">
-    <div class="muted" style="font-size:12px;margin-top:6px">Es la misma que pusiste en GitHub. Se guarda solo en este teléfono y nunca viaja a ningún lado; sirve para descifrar tus datos localmente.</div>
-    <div class="row" style="margin-top:16px;gap:10px">
-      <button class="btn ghost" onclick="closeSet()">Cerrar</button>
-      <button class="btn" onclick="saveSettings()">Guardar y actualizar</button>
+function isColOpen(id,def=false){ const v=lsGet('col_'+id); return v===null?def:v==='1'; }
+function collap(id,title,content,defOpen=false){
+  const open=isColOpen(id,defOpen);
+  return `<div class="card">
+    <div class="collap-hdr" onclick="toggleCol('${id}')">
+      <h3 style="margin-bottom:0">${title}</h3>
+      <span id="ca_${id}" class="collap-arrow" style="transform:${open?'rotate(180deg)':'rotate(0)'}">▾</span>
     </div>
-    <button class="btn ghost" style="margin-top:10px" onclick="addToHome()">Cómo agregar a inicio</button>
+    <div id="cb_${id}" class="collap-body" style="display:${open?'block':'none'}">${content}</div>
   </div>`;
-  m.addEventListener("click",e=>{ if(e.target===m) closeSet(); });
+}
+
+// ===================== SPARKLINE ======================================
+function spark(vals, color="#1F2421"){
+  if(!vals||vals.length<2) return '';
+  const w=56,h=28,mx=Math.max(...vals),mn=Math.min(...vals),rng=mx-mn||1;
+  const pts=vals.map((v,i)=>`${Math.round(i/(vals.length-1)*w)},${Math.round(h-(v-mn)/rng*h)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="mc-spark"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+// ===================== CONFIGURABLE METRIC CARDS =====================
+const ALL_METRICS={
+  bodyBattery:{ label:"Body Battery", val:()=>DATA.today.bodyBattery, suf:"/100", info:"Energía reservada. 0–30 descansá, 30–60 entreno suave, 60–100 apto para calidad. Se recarga durmiendo y baja con actividad/estrés.", color:"#3B82F6", trend:()=>DATA.bb7.map(x=>x.v) },
+  sleepScore:{ label:"Sueño", val:()=>DATA.today.sleepScore+"·"+DATA.today.sleepHrs+"h", suf:"", info:"Score de calidad de sueño 0–100. 90+ excelente. Incluye profundo, REM y ligero. Clave para readiness del día siguiente.", color:"#6FA8D6" },
+  hrv:{ label:"HRV semanal", val:()=>DATA.today.hrvWeekly, suf:" ms", info:"Variabilidad del ritmo cardíaco. Más alto = mejor recuperado. Tu promedio es ~82ms. <70ms = señal de fatiga o estrés.", color:"#346538" },
+  restingHr:{ label:"FC Reposo", val:()=>DATA.today.restingHr, suf:" bpm", info:"Frecuencia cardíaca en reposo. Tuya es 48–54bpm (excelente). Si sube >5bpm respecto a tu normal, tu cuerpo está trabajando en recuperar.", color:"#9F2F2D" },
+  readiness:{ label:"Readiness", val:()=>DATA.today.readiness, suf:"/100", info:"Score de disposición para entrenar. <25 descansá obligatorio. 25–60 entreno suave. >70 podés hacer calidad.", color:"#956400" },
+  recovery:{ label:"Recovery", val:()=>fmtRecovery(DATA.today.recoveryMin||0), suf:"", info:"Tiempo estimado que tu cuerpo necesita para recuperarse completamente. Lo calcula Garmin con tu carga reciente, HRV y sueño.", color:"#5b3b8c" },
+  vo2max:{ label:"VO2máx", val:()=>DATA.athlete.vo2, suf:" ml/kg/min", info:"Capacidad aeróbica máxima. El tuyo (52) es excelente para tu edad. >50 = nivel alto. Mejora con Z2 consistente.", color:"#1F6C9F" },
+  ftp:{ label:"FTP", val:()=>DATA.athlete.ftp, suf:" W", info:"Functional Threshold Power — potencia máxima sostenible ~1 hora. Tu FTP real (intervals.icu): 236W = 3.15 W/kg.", color:"#956400" },
+};
+let ACTIVE_METRICS=lsGet('metrics')?JSON.parse(lsGet('metrics')):['bodyBattery','sleepScore','hrv','restingHr'];
+function saveMetrics(){ lsSet('metrics',JSON.stringify(ACTIVE_METRICS)); }
+function mcard(key){
+  const m=ALL_METRICS[key]; if(!m) return '';
+  const val=m.val(), sp=m.trend?spark(m.trend(),m.color):'';
+  return `<div class="mcard" data-tip="${esc(m.info)}" onclick="showTip(this.dataset.tip)">
+    <div class="mc-lbl">${esc(m.label)}</div>
+    <div class="mc-val">${esc(String(val))}<small class="muted" style="font-size:12px;font-weight:500">${esc(m.suf)}</small></div>
+    ${sp}
+  </div>`;
+}
+function openMetricsEditor(){
+  const m=document.createElement('div'); m.className='modal'; m.id='metricsModal';
+  const checks=Object.entries(ALL_METRICS).map(([k,v])=>`
+    <label style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;text-transform:none;letter-spacing:0;color:var(--ink)">
+      <input type="checkbox" id="mc_${k}" ${ACTIVE_METRICS.includes(k)?'checked':''} style="width:18px;height:18px;border-radius:4px">
+      <div><b>${esc(v.label)}</b><div style="font-size:12px;color:var(--muted)">${esc(v.info.slice(0,60))}…</div></div>
+    </label>`).join('');
+  m.innerHTML=`<div class="sheet"><h2 style="margin-bottom:4px">Configurar indicadores</h2>
+    <div class="muted" style="font-size:12.5px;margin-bottom:12px">Tocá para activar o desactivar</div>
+    ${checks}
+    <div class="row" style="margin-top:16px;gap:10px">
+      <button class="btn ghost" onclick="closeMetricsEditor()">Cancelar</button>
+      <button class="btn" onclick="saveMetricsEditor()">Guardar</button>
+    </div></div>`;
+  m.addEventListener('click',e=>{ if(e.target===m) closeMetricsEditor(); });
   document.body.appendChild(m);
 }
-function closeSet(){ const m=document.getElementById("setModal"); if(m) m.remove(); }
-async function saveSettings(){
-  lsSet("coach_pass", document.getElementById("set-pass").value.trim());
-  closeSet(); await doRefresh();
-}
-function addToHome(){
-  toast("iPhone: Compartir → Agregar a inicio. Android: menú ⋮ → Instalar app.");
+function closeMetricsEditor(){ const m=document.getElementById('metricsModal'); if(m) m.remove(); }
+function saveMetricsEditor(){
+  ACTIVE_METRICS=Object.keys(ALL_METRICS).filter(k=>document.getElementById('mc_'+k)?.checked);
+  if(!ACTIVE_METRICS.length) ACTIVE_METRICS=['bodyBattery','sleepScore','hrv','restingHr'];
+  saveMetrics(); closeMetricsEditor(); renderHoy();
 }
 
-function registerSW(){
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
+// ===================== HEALTH TAB DATA ================================
+const HEALTH = {
+  inbody:[
+    { date:"2025-11-01", label:"Nov 2025",
+      peso:77.5, musculo:32.4, grasa:30.1, pgc:29.5, bmi:25.9, tmb:1598, agua:43.2, visceral:8 },
+    { date:"2026-01-15", label:"Ene 2026",
+      peso:74.9, musculo:32.7, grasa:22.8, pgc:22.8, bmi:25.1, tmb:1618, agua:43.8, visceral:7 },
+  ],
+  exams:[
+    { date:"2025-12-01", label:"Dic 2025", items:[
+      { name:"Hemoglobina", val:"15.2", unit:"g/dL", ref:"13.5–17.5", ok:true },
+      { name:"Hematocrito", val:"46", unit:"%", ref:"40–52", ok:true },
+      { name:"Ferritina", val:"68", unit:"ng/mL", ref:"20–300", ok:true },
+      { name:"Vitamina D", val:"28", unit:"ng/mL", ref:"30–100", ok:false, note:"Levemente bajo — considera suplementar" },
+      { name:"Glucosa en ayunas", val:"89", unit:"mg/dL", ref:"70–100", ok:true },
+      { name:"Colesterol total", val:"172", unit:"mg/dL", ref:"<200", ok:true },
+      { name:"Triglicéridos", val:"95", unit:"mg/dL", ref:"<150", ok:true },
+    ]}
+  ]
+};
+
+function renderSalud(){
+  const ib=HEALTH.inbody;
+  const last=ib[ib.length-1], prev=ib[ib.length-2];
+  function delta(key){ const d=last[key]-prev[key]; const up=d>0; const sym=d===0?'—':(up?'▲':'▼'); return {d:Math.abs(d).toFixed(1),sym,cls:key==='grasa'?(up?'trend-up':'trend-dn'):(key==='musculo'?(up?'trend-dn':'trend-up'):'trend-flat')}; }
+  // weight down = good for cyclist; muscle up = good; fat down = good
+  function ibMetric(label, key, unit, goodUp){
+    const v=last[key]; const del=delta(key);
+    const good=(goodUp && parseFloat(del.d)>0 && del.sym==='▲') || (!goodUp && parseFloat(del.d)>0 && del.sym==='▼');
+    const badTrend=(!goodUp && del.sym==='▲') || (goodUp && del.sym==='▼');
+    return `<div class="inbody-metric">
+      <div class="im-lbl">${label}</div>
+      <div class="im-val">${v}<small style="font-size:12px;color:var(--muted);font-weight:400"> ${unit}</small></div>
+      <div style="font-size:12px;margin-top:3px" class="${good?'trend-dn':badTrend?'trend-up':'trend-flat'}">${del.sym} ${del.d} vs ${prev.label}</div>
+    </div>`;
   }
+  // Mini trend chart for weight
+  const pesos=ib.map(x=>x.peso);
+  const grasas=ib.map(x=>x.grasa);
+  const wSpark=spark(pesos,"#9F2F2D");
+  const gSpark=spark(grasas,"#956400");
+  // Latest exam
+  const ex=HEALTH.exams[HEALTH.exams.length-1];
+  const examRows=ex.items.map(e=>`<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);gap:10px">
+    <div><div style="font-size:14px;font-weight:600">${esc(e.name)}</div>
+    ${e.note?`<div style="font-size:12px;color:var(--r-yellow)">${esc(e.note)}</div>`:''}</div>
+    <div style="text-align:right;flex:none">
+      <span style="font-size:15px;font-weight:700;color:${e.ok?'var(--r-green)':'var(--r-red)'}">${esc(e.val)}</span>
+      <span class="muted" style="font-size:12px"> ${esc(e.unit)}</span>
+      <div class="muted" style="font-size:11px">Ref: ${esc(e.ref)}</div>
+    </div>
+  </div>`).join('');
+
+  document.getElementById('tab-salud').innerHTML=`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <h3>InBody · ${last.label}</h3>
+          <div class="muted" style="font-size:12px;margin-top:2px">Objetivo: bajar grasa conservando músculo</div>
+        </div>
+        <button class="btn ghost sm" onclick="openAddInBody()">+ Nuevo</button>
+      </div>
+      <div class="inbody-row" style="margin-top:14px">
+        ${ibMetric("Peso","peso","kg",false)}
+        ${ibMetric("Músculo","musculo","kg",true)}
+        ${ibMetric("Grasa corporal","pgc","%",false)}
+        ${ibMetric("TMB","tmb","kcal",true)}
+      </div>
+      <div style="display:flex;gap:20px;margin-top:8px">
+        <div><div class="muted" style="font-size:11px;text-transform:uppercase">Tendencia peso</div>${wSpark}</div>
+        <div><div class="muted" style="font-size:11px;text-transform:uppercase">Tendencia grasa %</div>${gSpark}</div>
+      </div>
+    </div>
+
+    ${collap('ib_hist','Historial InBody',`
+      ${ib.slice().reverse().map(r=>`<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+        <div style="font-weight:600;font-size:14px;margin-bottom:6px">${r.label} — ${r.peso}kg</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:13px">
+          <span class="muted">Músculo <b style="color:var(--ink)">${r.musculo}kg</b></span>
+          <span class="muted">Grasa <b style="color:var(--ink)">${r.pgc}%</b></span>
+          <span class="muted">BMI <b style="color:var(--ink)">${r.bmi}</b></span>
+          <span class="muted">TMB <b style="color:var(--ink)">${r.tmb}kcal</b></span>
+          ${r.agua?`<span class="muted">Agua <b style="color:var(--ink)">${r.agua}L</b></span>`:''}
+          ${r.visceral?`<span class="muted">Visceral <b style="color:var(--ink)">${r.visceral}</b></span>`:''}
+        </div>
+      </div>`).join('')}
+    `,false)}
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin-bottom:0">Exámenes · ${ex.label}</h3>
+        <button class="btn ghost sm" onclick="openAddExam()">+ Nuevo</button>
+      </div>
+      ${examRows}
+    </div>
+
+    <div class="card">
+      <h3>Progreso hacia la meta</h3>
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span>Peso ${last.peso}kg → meta 68kg</span>
+          <span class="muted">${((last.peso-68).toFixed(1))}kg por bajar</span>
+        </div>
+        <div style="height:10px;background:var(--line);border-radius:5px;overflow:hidden">
+          <div style="width:${Math.min(100,Math.round((77.5-last.peso)/(77.5-68)*100))}%;height:100%;background:var(--r-blue);border-radius:5px"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span>Grasa ${last.pgc}% → meta ~16%</span>
+          <span class="muted">${(last.pgc-16).toFixed(1)}% por bajar</span>
+        </div>
+        <div style="height:10px;background:var(--line);border-radius:5px;overflow:hidden">
+          <div style="width:${Math.min(100,Math.round((30.1-last.pgc)/(30.1-16)*100))}%;height:100%;background:var(--r-yellow);border-radius:5px"></div>
+        </div>
+      </div>
+      <div class="muted" style="font-size:12px;margin-top:10px">Ritmo realista: 0.5–0.7kg/semana de grasa. Con tu TMB ${last.tmb}kcal + actividad, un déficit de 300–400kcal/día es suficiente.</div>
+    </div>
+
+    <div class="card">
+      <h3>Carreras</h3>
+      <button class="btn ghost" onclick="go('carreras')" style="margin-bottom:0">Ver calendario de carreras →</button>
+    </div>
+    <div class="src-note">Datos de tus archivos InBody. Agregá nuevas mediciones para ver la evolución.</div>
+  `;
+}
+function openAddInBody(){
+  const m=document.createElement('div'); m.className='modal'; m.id='inbodyModal';
+  m.innerHTML=`<div class="sheet"><h2>Nueva medición InBody</h2>
+    <label>Fecha</label><input id="ib-date" type="date" value="${isoOf(today())}">
+    <div class="grid2">
+      <div><label>Peso (kg)</label><input id="ib-peso" type="number" inputmode="decimal" placeholder="ej: 74.2"></div>
+      <div><label>Músculo (kg)</label><input id="ib-musc" type="number" inputmode="decimal" placeholder="ej: 33.0"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Grasa (%)</label><input id="ib-pgc" type="number" inputmode="decimal" placeholder="ej: 21.5"></div>
+      <div><label>TMB (kcal)</label><input id="ib-tmb" type="number" inputmode="numeric" placeholder="ej: 1625"></div>
+    </div>
+    <div class="row" style="margin-top:16px;gap:10px">
+      <button class="btn ghost" onclick="document.getElementById('inbodyModal').remove()">Cancelar</button>
+      <button class="btn" onclick="saveInBody()">Guardar</button>
+    </div></div>`;
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+  document.body.appendChild(m);
+}
+function saveInBody(){
+  const d={date:document.getElementById('ib-date').value,label:document.getElementById('ib-date').value.slice(0,7),
+    peso:+document.getElementById('ib-peso').value,musculo:+document.getElementById('ib-musc').value,
+    pgc:+document.getElementById('ib-pgc').value,tmb:+document.getElementById('ib-tmb').value};
+  if(!d.peso){alert('Poné el peso');return;}
+  HEALTH.inbody.push(d); HEALTH.inbody.sort((a,b)=>a.date<b.date?-1:1);
+  try{lsSet('health_inbody',JSON.stringify(HEALTH.inbody));}catch(e){}
+  document.getElementById('inbodyModal').remove(); renderSalud();
+}
+function openAddExam(){ toast("Próximamente — exportá tu PDF de laboratorio y agregalo aquí."); }
+
+// ===================== UPDATED RACES WITH EDIT =========================
+function renderCarreras(){
+  const t0=today();
+  const sorted=[...RACES].sort((a,b)=>a.date<b.date?-1:1);
+  const rows=sorted.map(r=>{
+    const cd=daysBetween(r.date,t0);
+    const pc={A:"t-red",B:"t-yellow",C:"t-gray"}[r.prio]||"t-gray";
+    const meta=[r.type,r.km?r.km+" km":null,r.elev?r.elev+" m":null].filter(Boolean).join(" · ");
+    return `<div class="race">
+      <div class="r-cd"><div class="r-days">${cd<0?"—":cd}</div><div class="r-dlbl">${cd<0?"pasó":"días"}</div></div>
+      <div class="r-main">
+        <div class="r-name">${esc(r.name)} <span class="tag ${pc}">${r.prio}</span></div>
+        <div class="r-meta">${fmtRaceDate(r)} · ${esc(meta)}</div>
+        ${r.note?`<div class="r-meta" style="margin-top:3px">${esc(r.note)}</div>`:""}
+      </div>
+      <div style="display:flex;gap:2px">
+        <button class="r-edit" onclick="openRaceModal('${r.id}')" aria-label="Editar">✎</button>
+        <button class="r-del" onclick="delRace('${r.id}')" aria-label="Borrar">&times;</button>
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("tab-carreras").innerHTML=`
+    <div class="card"><h3>Calendario de carreras</h3>${rows||'<div class="muted" style="font-size:14px;padding:12px 0">No hay carreras. Agregá la primera.</div>'}</div>
+    <button class="btn ghost" onclick="openRaceModal()">+ Agregar carrera</button>
+    <div class="src-note">Las carreras A definen la periodización. Tocá ✎ para editar.</div>
+  `;
+}
+function fmtRaceDate(r){
+  const a=parseISO(r.date); let s=a.getDate()+" "+MON[a.getMonth()];
+  if(r.date2){ const b=parseISO(r.date2); s+="–"+b.getDate()+" "+MON[b.getMonth()]; }
+  return s;
+}
+function delRace(id){ if(!confirm("¿Borrar esta carrera?"))return; RACES=RACES.filter(r=>r.id!==id); saveRaces(); renderCarreras(); }
+function openRaceModal(editId){
+  const r=editId?RACES.find(x=>x.id===editId):null;
+  const m=document.createElement("div"); m.className="modal"; m.id="raceModal";
+  m.innerHTML=`<div class="sheet">
+    <h2>${r?"Editar carrera":"Nueva carrera"}</h2>
+    <label>Nombre</label><input id="f-name" placeholder="Ej: Vuelta a Cartago" value="${r?esc(r.name):''}">
+    <label>Fecha inicio</label><input id="f-date" type="date" value="${r?r.date:'2026-08-01'}">
+    <label>Fecha fin (solo si es multi-día)</label><input id="f-date2" type="date" value="${r&&r.date2?r.date2:''}">
+    <div class="grid2">
+      <div><label>Tipo</label><select id="f-type">
+        ${["Ruta","MTB","Gravel","Triatlón","Natación","Atletismo","Hiking"].map(t=>`<option ${r&&r.type===t?'selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div><label>Prioridad</label><select id="f-prio">
+        ${[["A","objetivo"],["B","importante"],["C","entreno"]].map(([v,l])=>`<option value="${v}" ${r&&r.prio===v?'selected':v==='C'&&!r?'selected':''}>${v} — ${l}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="grid2">
+      <div><label>Distancia (km)</label><input id="f-km" type="number" inputmode="decimal" value="${r&&r.km?r.km:''}" placeholder="opcional"></div>
+      <div><label>Desnivel (m)</label><input id="f-elev" type="number" inputmode="numeric" value="${r&&r.elev?r.elev:''}" placeholder="opcional"></div>
+    </div>
+    <label>Nota</label><input id="f-note" value="${r&&r.note?esc(r.note):''}" placeholder="opcional">
+    <div class="row" style="margin-top:16px;gap:10px">
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" onclick="saveRace('${editId||''}')">Guardar</button>
+    </div></div>`;
+  m.addEventListener("click",e=>{ if(e.target===m) closeModal(); });
+  document.body.appendChild(m);
+}
+function closeModal(){ const m=document.getElementById("raceModal"); if(m) m.remove(); }
+function saveRace(editId){
+  const name=document.getElementById("f-name").value.trim();
+  if(!name){ alert("Poné un nombre"); return; }
+  const data={ name, date:document.getElementById("f-date").value,
+    date2:document.getElementById("f-date2").value||null,
+    type:document.getElementById("f-type").value,
+    prio:document.getElementById("f-prio").value,
+    km:parseFloat(document.getElementById("f-km").value)||null,
+    elev:parseInt(document.getElementById("f-elev").value)||null,
+    note:document.getElementById("f-note").value.trim()||null };
+  if(editId){ const idx=RACES.findIndex(r=>r.id===editId); if(idx>=0) RACES[idx]=Object.assign({id:editId},data); }
+  else RACES.push(Object.assign({id:"u"+Date.now()},data));
+  saveRaces(); closeModal(); renderCarreras();
+}
+// Keep addRace for compatibility
+function addRace(){ saveRace(''); }
+
+// ===================== AEROBIC LOAD CHART =============================
+function loadChart(){
+  const lf=DATA.loadFocus||{aerobicLow:557,aerobicHigh:1361,anaerobic:635,optLow:[600,900],optHigh:[700,1100],optAna:[200,500]};
+  const max=Math.max(lf.aerobicHigh, lf.aerobicLow, lf.anaerobic, (lf.optHigh||[0,0])[1])*1.1;
+  function bar(val, color, opt, label, info){
+    const pct=Math.round(val/max*100);
+    const optL=Math.round(opt[0]/max*100), optR=Math.round(opt[1]/max*100);
+    const over=val>opt[1], under=val<opt[0];
+    const status=over?"⚠ Por encima del óptimo":under?"⚠ Por debajo del óptimo":"✓ En rango";
+    const statusC=over?"color:var(--r-red)":under?"color:var(--r-yellow)":"color:var(--r-green)";
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:13px;font-weight:600">${tip(label, info)}</span>
+        <span style="font-size:13px;font-weight:600;${statusC}">${val} <span style="font-size:11px;font-weight:400">${status}</span></span>
+      </div>
+      <div class="load-bar-bg">
+        <div class="load-bar-fill" style="width:${pct}%;background:${color}"></div>
+        <div class="load-opt" style="left:${optL}%;width:${optR-optL}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px">
+        <span>Óptimo: ${opt[0]}–${opt[1]}</span><span>Tu valor: ${val}</span>
+      </div>
+    </div>`;
+  }
+  return `<div class="card">
+    <h3>Foco de carga · últimas 4 semanas</h3>
+    <div class="muted" style="font-size:12.5px;margin-bottom:14px">La franja sombreada es el rango óptimo. Aeróbica alta está muy por encima del óptimo — por eso el plan prioriza Z2 real y días de descanso.</div>
+    ${bar(lf.aerobicHigh,"#F59E0B",lf.optHigh||[700,1100],"Aeróbica alta","Carga acumulada en ritmo sostenido (Z3–Z4). Garmin la mide en semanas pasadas. Tuyo está en 1,361 — demasiado alto. El objetivo es bajarla aumentando el volumen de aeróbica baja real (Z1–Z2).")}
+    ${bar(lf.aerobicLow,"#3B82F6",lf.optLow||[600,900],"Aeróbica baja","Carga en Z1–Z2 verdadero. Este es el trabajo que construye la base aeróbica y permite recuperarse entre sesiones duras. Tu 557 está por debajo del óptimo — hacés poco trabajo fácil de verdad.")}
+    ${bar(lf.anaerobic,"#EF4444",lf.optAna||[200,500],"Anaeróbico","Carga en sprint, ataques y esfuerzos muy cortos por encima del VO2máx. Tu 635 está por encima del óptimo. El Vegabikes de cada sábado aporta mucho a este número.")}
+    <div style="margin-top:10px;padding:10px;background:var(--r-blue-bg);border-radius:8px;font-size:12.5px;color:var(--r-blue)">
+      <b>Qué hacer:</b> más kilómetros en Z2 real en el KICKR (FC 120–139, podés mantener conversación), menos Z3 "cómodo". El KICKR es perfecto para esto porque podés controlar la potencia exacta.
+    </div>
+  </div>`;
 }
 
-// ===================== INIT ==========================================
-function initHeader(){
-  const d=today(); const full=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"][d.getDay()];
-  document.getElementById("hdrDate").textContent=full+" "+d.getDate()+" "+MON[d.getMonth()]+" · "+DATA.athlete.city;
+// ===================== DAY DETAIL MODAL ===============================
+function sleepRec(rd, recovMin, planType){
+  const recH=Math.round((recovMin||0)/60);
+  if(rd<30||recH>48) return {hrs:"8.5–9.5h",reason:"Readiness muy bajo + recovery alto. El sueño es el recuperador más poderoso."};
+  if(planType==="kickr-quality"||planType==="vegabikes") return {hrs:"8–9h",reason:"Sesión dura programada o hecha. La síntesis de glucógeno y proteína ocurre principalmente mientras dormís."};
+  if(planType==="kickr-strength") return {hrs:"7.5–8.5h",reason:"Día de doble sesión (bici + fuerza). El músculo se reconstruye en el sueño profundo."};
+  return {hrs:"7–8h",reason:"Día de recuperación o Z2. El cuerpo necesita menos tiempo de reparación, pero la consistencia de sueño es clave."};
 }
-document.getElementById("sendBtn").addEventListener("click",()=>ask());
-document.getElementById("chatInput").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask();} });
-document.getElementById("settingsBtn").addEventListener("click",openSettings);
-document.getElementById("refreshBtn").addEventListener("click",doRefresh);
 
-(async function(){
-  await loadData();
-  initHeader();
-  renderHoy(); renderQuick();
-  registerSW();
-  if(DATA.source!=="live" && !lsGet("coach_pass")){ /* primera vez: mostrará demo hasta poner la frase */ }
-  if(window.puter){ try{ if(await puter.auth.isSignedIn()) setCoachStatus("Coach Claude · conectado"); }catch(e){} }
-})();
-</script>
-</body>
-</html>
+function sessionDetail(pl){
+  const type=pl.type||"easy";
+  const nt=NUTR_TIMING[nutritionToday()]||NUTR_TIMING.descanso;
+  const hy=HYDRATION[nutritionToday()]||HYDRATION.descanso;
+
+  // Session structure by type
+  const structures={
+    "kickr-easy":{ icon:"🎿", device:"Wahoo KICKR CORE", main:[
+      "Calentar 10min progresivo (80–100W, 80–90rpm)",
+      "55min Z2 constante — FC 120–139, potencia 118–165W",
+      "Cadencia objetivo: 90–100rpm (ponelo como alerta en el Edge)",
+      "Enfriar 5min muy suave",
+    ], tip:"Z2 en el KICKR es más efectivo que en ruta porque controlás la potencia exacta. Si el FC sube de 140, bajá la resistencia." },
+    "kickr-quality":{ icon:"⚡", device:"Wahoo KICKR CORE", main:[
+      "Calentar 15min: 10min progresivo + 2×1min apertura en Z4",
+      "4 × 8min a 189–212W (FC 162–178) con 4min suave entre cada uno",
+      "Cadencia: 85–95rpm en los bloques",
+      "Si el FC sube de 180 en el primero, reducí 5–10W — llegás a la 4ta repetición",
+      "Enfriar 10min suave",
+    ], tip:"4×8min al umbral es la sesión más efectiva para subir el FTP. Duro pero manejable. Si vas al reloj o ruta, asegurate de que el tramo sea plano." },
+    "kickr-strength":{ icon:"💪", device:"KICKR + fuerza en casa", main:[
+      "AM 5:30–7:00am: KICKR Z2 60min (igual que kickr-easy)",
+      "PM 6:00–6:45pm: Fuerza base 35–40min (ver ejercicios abajo)",
+      "Dejá al menos 8h entre sesiones",
+    ], tip:"Bici AM activa el sistema aeróbico; fuerza PM trabaja cuando el sistema neuromuscular está activado pero no fatigado por la bici." },
+    "vegabikes":{ icon:"🚴", device:"Bici de ruta", main:[
+      "Salida 6:00am en punto — llevá todo listo la noche anterior",
+      "Primeros 15min: rodás suave hasta que el grupo arranque fuerte",
+      "En el grupo: rueda en la posición que el readiness permita. Si estás fresco, tirá; si no, rueda en la mitad",
+      "Llevá mínimo 2 bidones + gel + banano para el camino",
+      "Avisá cuándo llegás para tener la comida post-ride lista",
+    ], tip:"El Vegabikes es tu duro de la semana. No te autogestiones para salir antes; el grupo te empuja más de lo que harías solo." },
+    "strength":{ icon:"🏋️", device:"En casa · sin equipamiento", main:[
+      "Calentá 5min: saltos de tijera + círculos de cadera + gato-vaca",
+      "8 ejercicios de la rutina · 3 series · ver lista abajo",
+      "Descansá los tiempos indicados — si apurás los descansos, la técnica se rompe",
+    ], tip:"La fuerza construida hoy aparece como potencia en el sillín en 4–6 semanas. Es una inversión de largo plazo." },
+    "rest":{ icon:"😴", device:null, main:[
+      "Caminata suave 20–30min si el clima acompaña",
+      "Estiramiento pasivo 10min (ver lista en la pestaña Plan)",
+      "Hidratación activa todo el día",
+    ], tip:"El descanso no es tiempo perdido — es cuando el cuerpo integra el estímulo de las últimas sesiones." },
+    "off":{ icon:"🔒", device:null, main:["Sin entrenamiento programado."], tip:"" },
+  };
+  const s=structures[type]||structures["rest"];
+  const needsStrength=type==="kickr-strength"||type==="strength";
+  const needsKickr=type.startsWith("kickr")||type==="vegabikes";
+  const sl=sleepRec(DATA.today.readiness, DATA.today.recoveryMin, type);
+
+  return `
+    ${s.icon && s.device ? `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <span style="font-size:22px">${s.icon}</span>
+      <div><div style="font-weight:600;font-size:15px">${esc(pl.title)}</div>
+      <div class="muted" style="font-size:13px">${esc(s.device)}</div></div>
+    </div>`:""}
+
+    ${pl.time ? `<div style="background:var(--r-blue-bg);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--r-blue);margin-bottom:3px">⏰ Horario</div>
+      <div style="font-weight:600;font-size:16px">${esc(pl.time)}</div>
+      <div class="muted" style="font-size:12px;margin-top:2px">Salís 15min antes · 30min para alistar/duchar después</div>
+    </div>`:""}
+
+    ${type!=="off" ? `
+    <div class="section">
+      <h4>🔥 Calentamiento dinámico · 6–8 min</h4>
+      ${STRETCH.pre.items.map((st,i)=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px">
+        <span><b>${i+1}.</b> ${esc(st.name)}</span>
+        <span class="tag t-green" style="white-space:nowrap">${esc(st.time)}</span>
+      </div>`).join("")}
+    </div>`:""}
+
+    <div class="section">
+      <h4>🎯 Sesión principal</h4>
+      ${s.main.map((step,i)=>`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px">
+        <span style="color:var(--muted);font-weight:600;flex:none">${i+1}.</span>
+        <span>${esc(step)}</span>
+      </div>`).join("")}
+      ${s.tip?`<div style="margin-top:10px;padding:10px;background:var(--r-yellow-bg);border-radius:8px;font-size:12.5px;color:var(--r-yellow)">💡 ${esc(s.tip)}</div>`:""}
+    </div>
+
+    ${needsStrength ? `<div class="section">
+      <h4>🏋️ Fuerza base · 8 ejercicios</h4>
+      ${STRENGTH.A.exercises.map((e,i)=>`<div class="ex-row">
+        <div class="ex-num">${i+1}</div>
+        <div class="ex-body">
+          <div style="font-size:13.5px;font-weight:600">${esc(e.name)}</div>
+          <div class="ex-meta">
+            <span class="tag t-gray">${esc(e.sets)}×${esc(String(e.reps))}</span>
+            <span class="tag t-gray">Descanso ${esc(e.rest)}</span>
+            <a href="${esc(e.yt)}" target="_blank" style="background:var(--r-red-bg);color:var(--r-red);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:9999px;font-weight:600;text-decoration:none">▶ Ver video</a>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:4px;line-height:1.5">${esc(e.tip)}</div>
+        </div>
+      </div>`).join("")}
+    </div>`:""}
+
+    ${type!=="off" ? `<div class="section">
+      <h4>🧊 Enfriamiento · estiramiento estático 15–20 min</h4>
+      ${STRETCH.post.items.slice(0,5).map((st,i)=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px">
+        <span><b>${i+1}.</b> ${esc(st.name)}</span>
+        <span class="tag t-blue" style="white-space:nowrap">${esc(st.time)}</span>
+      </div>`).join("")}
+      <div class="muted" style="font-size:12px;margin-top:6px">Ver los 8 estiramientos completos en la pestaña Plan.</div>
+    </div>`:""}
+
+    ${nt.post ? `<div class="section">
+      <h4>🍽️ Nutrición post-sesión</h4>
+      <div style="background:var(--r-green-bg);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--r-green)">
+        <b>${esc(nt.post.window||"Post-sesión")}</b>
+      </div>
+      <ul style="margin:8px 0;padding-left:18px;font-size:13.5px;line-height:1.8">
+        ${nt.post.items.map(x=>`<li>${esc(x)}</li>`).join("")}
+      </ul>
+    </div>`:""}
+
+    ${hy && (hy.post||hy.items) ? `<div class="section">
+      <h4>💧 Hidratación</h4>
+      ${(hy.during||hy.items||[]).map(h=>`<div class="hydration-row">
+        <span class="hydration-icon">${h.icon}</span>
+        <div><div style="font-size:13.5px;font-weight:600">${esc(h.txt)}</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">${esc(h.detail)}</div></div>
+      </div>`).join("")}
+    </div>`:""}
+
+    <div class="section
