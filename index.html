@@ -364,6 +364,13 @@ function daysBetween(aIso,bDate){ return Math.round((parseISO(aIso)-bDate)/86400
 function fmtRecovery(min){ const h=Math.round(min/60); return h>=24? (Math.round(h/24*10)/10)+" días" : h+" h"; }
 function hm(min){ const h=Math.floor(min/60), m=Math.round(min%60); return h?(h+"h"+(m?" "+m+"m":"")):(m+"m"); }
 function nMacros(ex){ const C=(ex.H+ex.Fr)*15+ex.L*12, P=ex.P*7+ex.L*8, G=ex.G*5; return {C,P,G,kcal:Math.round(C*4+P*4+G*9)}; }
+function fmtLocalTime(iso){
+  if(!iso) return '';
+  try{
+    const d=new Date(iso);
+    return d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',hour12:false})+" hora local";
+  }catch(e){ return iso.slice(11,16); }
+}
 
 function phaseFor(iso){
   for(const p of PHASES){ if(iso>=p.from && iso<=p.to) return p; }
@@ -639,7 +646,7 @@ function renderHoy(){
       ${a.hrAvg>160?`<div style="margin-top:10px"><span class="tag t-red">FC media en umbral</span> <span class="muted" style="font-size:12.5px">— por esto cayó tu readiness. El sábado va duro; el resto de la semana, suave.</span></div>`:""}
     </div>
 
-    <div class="src-note">${DATA.source==="live"?"Datos en vivo · actualizado "+DATA.fetchedAt.slice(11,16):"Datos demo · snapshot real del 20 jun"}</div>
+    <div class="src-note">${DATA.source==="live"?"Datos en vivo · actualizado "+fmtLocalTime(DATA.fetchedAt):"Datos demo · snapshot real del 20 jun"}</div>
   `;
 }
 function metric(lbl,val,suf){ return `<div class="metric"><div class="lbl">${lbl}</div><div class="val">${val}<small>${suf||""}</small></div></div>`; }
@@ -953,27 +960,37 @@ function renderQuick(){ document.getElementById("quickQs").innerHTML =
 
 function coachSystemPrompt(){
   const t=DATA.today, a=DATA.athlete, la=DATA.lastActivity;
-  const racesTxt=RACES.map(r=>`- ${r.name} (${r.prio}) ${fmtRaceDate(r)} ${r.type} ${r.km?r.km+"km":""} ${r.elev?r.elev+"m":""}`).join("\n");
-  return `Sos el coach de ciclismo de ${a.name}, un ciclista costarricense de ${a.age} años en ${a.city}. Hablás en español tico, directo, cálido y concreto. Das consejos accionables, no charlas largas.
+  const racesTxt=RACES.map(r=>`- ${r.name} (${r.prio}) ${fmtRaceDate(r)} ${r.type} ${r.km?r.km+'km':''} ${r.elev?r.elev+'m':''}`).join('\n');
+  const dataTag=DATA.source==="live"?`DATOS EN VIVO (robot sincronizó a las ${fmtLocalTime(DATA.fetchedAt)})`:"DATOS (snapshot demo)";
+  return `Sos el coach de ciclismo personal de ${a.name}. Español tico, directo, cálido, concreto. Consejos accionables y breves.
 
-PERFIL: ${a.weightKg}kg, ${a.heightCm}cm. VO2máx ${a.vo2}, LTHR ${a.lthr} bpm, FTP ~${a.ftp}W (2.43 W/kg). Zonas FC: Z1<120, Z2 120-139, Z3 140-161, Z4 162-178, Z5>178.
+IMPORTANTE: Tenés los datos reales de Garmin de ${a.name} EMBEBIDOS ACA ABAJO. Los sincroniza un robot automático desde su Fénix 7X cada 4 horas. Cuando te pregunten por sus datos, mostrálos directamente. NUNCA digas que no tenés acceso a Garmin — ya tenés los datos en este mismo prompt.
 
-DATOS DE HOY (Garmin, ${DATA.fetchedAt.slice(0,10)}):
-- Training Readiness ${t.readiness}/100 (${t.readinessMsg}).
-- Tiempo de recuperación pendiente: ${fmtRecovery(t.recoveryMin)}.
-- Body Battery ${t.bodyBattery}/100, sueño score ${t.sleepScore} (${t.sleepHrs}h), HRV semanal ${t.hrvWeekly}ms, FC reposo ${t.restingHr}.
-- Última salida: ${la.km}km, ${Math.floor(la.min/60)}h${la.min%60}, FC media ${la.hrAvg} (máx ${la.hrMax}), ${la.watts}W, cadencia ${la.cad}rpm.
+PERFIL:
+- Peso ${a.weightKg}kg, Altura ${a.heightCm}cm, Edad ${a.age} años, ${a.city} Costa Rica
+- VO2máx ${a.vo2} ml/kg/min, LTHR ${a.lthr} bpm, FTP ~${a.ftp}W (${(a.ftp/a.weightKg).toFixed(2)} W/kg)
+- Zonas FC: Z1 <120 / Z2 120-139 / Z3 140-161 / Z4 162-178 / Z5 >178
+- Zonas potencia: Z1 <110W / Z2 110-150W / Z3 150-180W / Z4 180-210W / Z5 210-240W
 
-HORARIO: Trabaja Lun-Vie 8:00-17:30. Martes en oficina (no entrena). Lunes baile 19:30-22:00 (solo entrena 5:30-6:30am). SÁBADOS salida fija con la grupeta Vegabikes a ritmo muy fuerte (no se salta; es su desestrés). Domingo se adapta.
+${dataTag}:
+- Training Readiness: ${t.readiness}/100 ("${t.readinessMsg}")
+- Recuperación pendiente: ${fmtRecovery(t.recoveryMin||0)}
+- Body Battery: ${t.bodyBattery}/100
+- Sueño: score ${t.sleepScore}/100 / ${t.sleepHrs}h
+- HRV semanal: ${t.hrvWeekly} ms
+- FC reposo: ${t.restingHr} bpm
+- Última salida: ${la.name} / ${la.km}km / ${Math.floor(la.min/60)}h${String(la.min%60).padStart(2,'0')} / FC media ${la.hrAvg} (máx ${la.hrMax}) / ${la.watts}W / cadencia ${la.cad}rpm
+
+HORARIO: Martes=oficina(no entrena). Lunes=baile 19:30 (solo 5:30-6:30am). Sábados=Vegabikes grupeta duro (FIJO, nunca se salta).
 
 CARRERAS:
 ${racesTxt}
 
-PROBLEMAS A CORREGIR: (1) zona gris — entrena demasiado en Z3-Z4, falta polarización real; (2) cadencia baja 69-76rpm, subir a 90-100; (3) gap FTP/VO2máx — más Z2 puro y umbral estructurado; (4) días duros seguidos sin recuperar.
+PROBLEMAS: (1) zona gris 74% en Z3-Z4 (2) cadencia 69-76rpm quiere 90-100 (3) gap FTP/VO2máx (4) días duros seguidos.
 
-NUTRICIÓN (sistema de intercambios de Más Que Calorías): 1 harina≈15g carbo, 1 fruta≈15g carbo, 1 lácteo≈12g carbo+8g prote, 1 proteína≈7g prote, 1 grasa≈5g. InBody ene 2026: peso ${NUTR.goal.pesoActual}kg, músculo ${NUTR.goal.mme}kg, grasa ${NUTR.goal.pgc}%, TMB ${NUTR.goal.tmb}. META: bajar a ${NUTR.goal.pesoIdeal}kg (${NUTR.goal.controlGrasa}kg de grasa) CONSERVANDO músculo. Por eso: proteína alta siempre, carbo periodizado según entreno. Hoy es día tipo "${nutritionToday()}": ${JSON.stringify(NUTR.dayTypes[nutritionToday()].ex)}. Cuando recomiendes comida, usá intercambios y productos de Costa Rica (yogurt griego Protein Power, avena, pechuga, tortilla de maíz, frijoles, banano, aguacate). En rides largos: 60-90g carbo/hora. Recuperación post: carbo + proteína en 45 min.
+NUTRICIÓN (Más Que Calorías): ${NUTR.goal.pesoActual}kg meta ${NUTR.goal.pesoIdeal}kg, grasa ${NUTR.goal.pgc}%, TMB ${NUTR.goal.tmb}kcal. Hoy día tipo "${nutritionToday()}" = ${JSON.stringify(NUTR.dayTypes[nutritionToday()].ex)}. Rides largos: 60-90g carbo/h. Post-ride: carbo+proteína en 45min. Productos CR: yogurt Protein Power, avena, pechuga, tortilla maíz, frijoles, banano, aguacate.
 
-PRINCIPIOS: respetá su readiness/recovery. Si readiness<25 o recovery alto, mandá descanso aunque él quiera entrenar. Hacé los días fáciles DE VERDAD fáciles (Z2) para que el sábado duro sea sostenible. Periodizá hacia las carreras A (Cerro 25-26 jul, Caribe 17 oct). Sé honesto si algo es mala idea.`;
+PRINCIPIOS: Readiness<20 o recovery>60h = descanso total aunque quiera entrenar. Días fáciles FC<135 de verdad. Polarizá real. Periodizá hacia Cerro (25-26 jul) y Caribe (17 oct). Sé honesto si algo es mala idea.`;
 }
 
 async function ensurePuter(){
@@ -1004,14 +1021,17 @@ async function ask(text){
   const typing=addMsg("a",""); typing.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
   chatHistory.push({role:"user",content:text});
   try{
-    const messages=[{role:"system",content:coachSystemPrompt()}, ...chatHistory];
-    const resp=await puter.ai.chat(messages,{model:"claude-sonnet-4-6"});
+    // IMPORTANTE: Puter.js v2 requiere el system prompt como opción, NO como rol en messages
+    const resp=await puter.ai.chat(
+      chatHistory,
+      { model:"claude-sonnet-4-6", system: coachSystemPrompt() }
+    );
     const out=extractText(resp);
     typing.innerHTML=renderMd(out);
     chatHistory.push({role:"assistant",content:out});
   }catch(e){
     typing.classList.remove("a"); typing.className="msg sys";
-    typing.textContent="No pude conectar con el coach. Revisá tu sesión de Puter e intentá de nuevo.";
+    typing.textContent="No pude conectar con el coach. Revisá tu sesión de Puter e intentá de nuevo. ("+String(e).slice(0,80)+")";
   }
 }
 function renderMd(text){
@@ -1100,16 +1120,17 @@ async function doRefresh(){
   rerender();
   btn.style.opacity="";
   btn.style.pointerEvents="";
-  const src=DATA.source==="live"
-    ? "Datos en vivo · "+DATA.fetchedAt.slice(11,16)
-    : "Sin datos nuevos";
-  document.getElementById("srcBadge") && (document.getElementById("srcBadge").textContent=src);
-  toast(r.ok ? "✓ "+src : (r.reason==="nopass" ? "Poné tu frase en Ajustes ⚙" : "Sin cambios — usando demo"));
+  // limpiar historial del coach para que use el contexto fresco
+  if(r.ok){ chatHistory=[]; }
+  const msg=r.ok
+    ? "✓ Actualizado · "+fmtLocalTime(DATA.fetchedAt)
+    : (r.reason==="nopass" ? "Poné tu frase en Ajustes ⚙" : "Sin datos nuevos — usando demo");
+  toast(msg);
 }
 
 function openSettings(){
   const pass=lsGet("coach_pass")||"";
-  const src=DATA.source==="live" ? "En vivo · "+(DATA.fetchedAt||"").replace("T"," ").slice(0,16) : "Demo (snapshot)";
+  const src=DATA.source==="live" ? "En vivo · "+fmtLocalTime(DATA.fetchedAt) : "Demo (snapshot)";
   const m=document.createElement("div"); m.className="modal"; m.id="setModal";
   m.innerHTML=`<div class="sheet">
     <h2>Ajustes</h2>
