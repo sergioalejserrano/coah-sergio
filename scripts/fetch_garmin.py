@@ -47,26 +47,44 @@ def get_env(name, required=False):
 
 # --------------------------------------------------------------------------
 def login_garmin():
-    """Devuelve un cliente Garmin autenticado. Soporta token o usuario/clave."""
+    """Devuelve un cliente Garmin autenticado."""
     from garminconnect import Garmin
 
     token_b64 = get_env("GARMIN_TOKENSTORE_B64")
-    email = get_env("GARMIN_EMAIL")
-    password = get_env("GARMIN_PASSWORD")
+    email     = get_env("GARMIN_EMAIL")
+    password  = get_env("GARMIN_PASSWORD")
 
+    # Intentar con token primero
     if token_b64:
-        log("Login Garmin con token guardado…")
-        g = Garmin()
-        g.login(token_b64)            # resume desde token base64 (no usa la clave)
-        return g
+        log("Intentando login con token…")
+        try:
+            g = Garmin()
+            # El token puede ser base64 de JSON o JSON directo
+            import base64
+            try:
+                decoded = base64.b64decode(token_b64).decode()
+            except Exception:
+                decoded = token_b64
+            g.client.loads(decoded)
+            # Verificar que el token sea válido
+            if g.client.is_authenticated():
+                log("Token válido, login OK.")
+                return g
+            else:
+                log("Token no válido, cayendo a usuario+clave…")
+        except Exception as e:
+            log(f"Token falló ({e}), cayendo a usuario+clave…")
 
+    # Login con usuario + clave (salta endpoints móviles que pueden estar bloqueados)
     if email and password:
         log("Login Garmin con usuario y clave…")
         g = Garmin(email=email, password=password)
+        g.client.skip_strategies = {"mobile+cffi", "mobile+requests"}
         g.login()
+        log("Login con usuario+clave OK.")
         return g
 
-    log("ERROR: definí GARMIN_TOKENSTORE_B64  o  GARMIN_EMAIL + GARMIN_PASSWORD")
+    log("ERROR: definí GARMIN_TOKENSTORE_B64 o GARMIN_EMAIL + GARMIN_PASSWORD en los Secrets")
     sys.exit(1)
 
 
