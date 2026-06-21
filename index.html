@@ -203,7 +203,7 @@ const SEED = {
   fetchedAt: "2026-06-20T11:00:00-06:00",
   source: "demo",                       // "demo" | "live"
   athlete: { name:"Sergio", age:32, weightKg:74.9, heightCm:173,
-             vo2:52, lthr:178, ftp:182, city:"Cartago" },
+             vo2:52, lthr:178, ftp:200, city:"Cartago" },
   today: {
     readiness:10, readinessLevel:"POOR", readinessMsg:"Dejá que tu cuerpo se recupere",
     recoveryMin:5607,                    // ~93 h
@@ -220,12 +220,12 @@ const SEED = {
           {z:"Z3",r:"140–161",name:"Tempo",cls:"t-green"},
           {z:"Z4",r:"162–178",name:"Umbral",cls:"t-yellow"},
           {z:"Z5",r:">178",name:"VO2máx",cls:"t-red"} ],
-  pzones:[ {z:"Z1",r:"<100",name:"Recuperación",cls:"t-gray"},
-           {z:"Z2",r:"102–137",name:"Resistencia",cls:"t-blue"},
-           {z:"Z3",r:"139–164",name:"Tempo",cls:"t-green"},
-           {z:"Z4",r:"166–191",name:"Umbral (FTP)",cls:"t-yellow"},
-           {z:"Z5",r:"193–218",name:"VO2máx",cls:"t-red"},
-           {z:"Z6",r:">218",name:"Anaeróbico",cls:"t-violet"} ]
+  pzones:[ {z:"Z1",r:"<110",name:"Recuperación activa",cls:"t-gray"},
+           {z:"Z2",r:"110–150",name:"Resistencia aeróbica",cls:"t-blue"},
+           {z:"Z3",r:"150–180",name:"Tempo",cls:"t-green"},
+           {z:"Z4",r:"180–210",name:"Umbral (FTP ~200W)",cls:"t-yellow"},
+           {z:"Z5",r:"210–240",name:"VO2máx",cls:"t-red"},
+           {z:"Z6",r:">240",name:"Anaeróbico / sprint",cls:"t-violet"} ]
 };
 
 // ---------- NUTRICIÓN (sistema de intercambios · Más Que Calorías) ----------
@@ -374,23 +374,149 @@ function phaseFor(iso){
 // Decide la sesión recomendada según datos del día + disponibilidad + fase.
 function todaySession(){
   const t = DATA.today;
-  // 1) regla de recuperación: si recovery alto o readiness bajo -> descanso
-  if(t.readiness < 25 || t.recoveryMin > 2880){
-    return { dot:"#9F2F2D", tag:["Descanso","t-red"],
-      title:"Recuperación",
-      desc:"Readiness "+t.readiness+"/100 y "+fmtRecovery(t.recoveryMin)+" de recuperación pendiente. Hoy ya metiste 72km duros (FC media 167). Resto del día: descanso total o caminar suave. Hidratá y comé proteína." };
+  const rd = t.readiness || 0;
+  const recH = (t.recoveryMin||0) / 60;
+  const bb = t.bodyBattery || 0;
+  const wd = today().getDay(); // 0=Dom,1=Lun,...,6=Sáb
+
+  // Descanso total: readiness muy bajo O recovery muy alto
+  if(rd < 20 || recH > 60){
+    return { dot:"#9F2F2D", tag:["Descanso total","t-red"],
+      title:"Descanso — recuperación activa",
+      desc:`Readiness ${rd}/100 · recovery ${fmtRecovery(t.recoveryMin||0)} pendiente. Caminá suave, estirá, hidratá bien. Sin bici hoy.` };
   }
-  if(t.readiness < 45)
-    return { dot:"#1F6C9F", tag:["Z2 corto","t-blue"], title:"Rodada suave 45 min",
-      desc:"Z1–Z2 (FC <140). Piernas sueltas, nada de fuerza." };
-  if(t.readiness < 70)
-    return { dot:"#346538", tag:["Endurance","t-green"], title:"Z2 60–90 min",
-      desc:"Base aeróbica constante, cadencia 90–100 rpm." };
-  return { dot:"#956400", tag:["Calidad","t-yellow"], title:"Intervalos de calidad",
-    desc:"Estás fresco. 3–4× 8 min en umbral (Z4) con 4 min suave." };
+  // Martes: oficina, sin entreno
+  if(wd===2){
+    return { dot:"#787774", tag:["Descanso","t-gray"], title:"Día de descanso · oficina",
+      desc:"Martes en la oficina. Aprovechá para estirar en el escritorio y caminar en el almuerzo." };
+  }
+  // Sábado: Vegabikes (fijo, se va igual pero ajustamos cómo)
+  if(wd===6){
+    if(rd < 45) return { dot:"#956400", tag:["Vegabikes","t-yellow"], title:"Vegabikes — rueda suave",
+      desc:`Readiness ${rd}/100. Andá pero rueda en la grupeta, no tirés. Conservá energía.` };
+    return { dot:"#9F2F2D", tag:["Vegabikes","t-red"], title:"Vegabikes — día duro",
+      desc:"Salida con la grupeta. Empujá fuerte pero controlado. Pre: carbo bueno. Post: proteína en 45min." };
+  }
+  // Fuerza: miércoles o jueves cuando readiness >= 60
+  if((wd===3||wd===4) && rd >= 60 && bb >= 50){
+    return { dot:"#5b3b8c", tag:["Fuerza","t-violet"], title:"Fuerza + bici",
+      desc:"Día de entrenamiento complementario. Rutina de fuerza (ver Plan) + Z2 opcional 45min si quedan piernas." };
+  }
+  // Lunes: solo mañana, suave (baile de noche)
+  if(wd===1){
+    if(rd < 45) return { dot:"#787774", tag:["Descanso","t-gray"], title:"Descanso · lunes",
+      desc:"Readiness bajo y baile de noche. Dejá el cuerpo descansar." };
+    return { dot:"#1F6C9F", tag:["Z1–Z2","t-blue"], title:"Z1–Z2 suave · 45min",
+      desc:"Solo 5:30–6:30am. FC <135, cadencia 90–100rpm. Después: baile de noche." };
+  }
+  // Calidad: readiness alto + día disponible
+  if(rd >= 70 && bb >= 55){
+    return { dot:"#956400", tag:["Calidad","t-yellow"], title:"Intervalos de umbral",
+      desc:`Readiness ${rd}/100 — estás fresco. 4×8min en Z4 (FC 162–178 · ~200W). Calentá 15min, enfriá 10min.` };
+  }
+  // Z2 base
+  if(rd >= 45){
+    return { dot:"#346538", tag:["Z2 base","t-green"], title:"Z2 endurance · 60–90min",
+      desc:`Readiness ${rd}/100. FC 120–139, cadencia 90–100rpm. Si subís, mantenés el pulso ahí.` };
+  }
+  // Recuperación suave
+  return { dot:"#1F6C9F", tag:["Recuperación","t-blue"], title:"Pedaleo suave · 40min",
+    desc:`Readiness ${rd}/100. Z1 puro, FC <130. Sin esfuerzo.` };
 }
 
-// Plan para un día futuro (template por fase + disponibilidad)
+// ---------- PROTOCOLOS DE ESTIRAMIENTO (basado en evidencia) ----------
+const STRETCH = {
+  pre: {
+    name:"Calentamiento dinámico · 6–8 min",
+    science:"El estiramiento estático antes reduce el rendimiento hasta un 8% (Journal of Sports Medicine). Usás movimientos dinámicos que activan el sistema neuromuscular SIN inhibir la potencia.",
+    items:[
+      { name:"Balanceo de piernas", time:"30s c/lado", how:"De pie, agarrás una pared. Balanceás la pierna libre hacia adelante y atrás, aumentando el rango cada rep. Activa isquiotibiales y cadera." },
+      { name:"Zancada con rotación de torso", time:"10 reps c/lado", how:"Zancada hacia adelante, la mano del mismo lado del pie adelantado toca el suelo. Luego rotás el brazo contrario hacia el techo. Abre cadera y columna torácica." },
+      { name:"Sentadilla profunda con talones en el piso", time:"10 reps lentas", how:"Bajás todo lo que podés con talones en el piso, manos juntas empujando las rodillas hacia afuera. Activa glúteos, tobillos y cadena posterior." },
+      { name:"Círculos de cadera", time:"10 c/dirección", how:"Manos en la cadera, trazás círculos amplios con la cadera. Lubrica la articulación de la cadera que es el eje del pedaleo." },
+      { name:"Gato-vaca (Cat-cow)", time:"10 respiraciones", how:"En cuatro patas. Inspirás arqueando la espalda hacia abajo (cadera arriba), exhalás redondeando la espalda hacia arriba. Activa la columna para la posición en el Edge." },
+      { name:"Inchworm", time:"8 reps", how:"Desde de pie, bajás las manos al piso, caminás con las manos hasta plancha frontal, volvés caminando con los pies hasta las manos y subís. Activa toda la cadena posterior." },
+    ]
+  },
+  post: {
+    name:"Estiramiento estático post-ride · 15–20 min",
+    science:"Con el músculo caliente el tejido conectivo es más elástico y el estiramiento mejora el rango articular sin riesgo. 3–4×/semana mínimo. Hold de 30–45s por posición.",
+    items:[
+      { name:"Flexor de cadera (psoas)", time:"45s c/lado", how:"Rodilla en el piso (postura de propuesta), cadera del lado trasero empuja hacia adelante y abajo hasta sentir el estiramiento en la ingle delantera. El psoas se acorta crónicamente en ciclistas — es el #1 prioritario." },
+      { name:"Isquiotibiales (hamstring) sentado", time:"45s c/lado", how:"Sentado en el piso, una pierna extendida, la otra doblada. Inclinate hacia adelante desde la CADERA (no redondes la espalda) hasta sentir el tirón detrás del muslo. Espalda recta." },
+      { name:"Piriforme (piriformis / figura 4)", time:"45s c/lado", how:"Acostado boca arriba, cruzás el tobillo sobre la rodilla opuesta (figura 4). Jalás esa rodilla hacia el pecho. Sentís el estiramiento profundo en el glúteo. Clave para la IT band." },
+      { name:"Cuádriceps de pie", time:"30s c/lado", how:"De pie, doblás la rodilla llevando el talón al glúteo, sujetás el pie con la mano. Caderas rectas, rodillas juntas. Si perdés el equilibrio, agarrás una pared." },
+      { name:"Estiramiento torácico con foam roller o silla", time:"2 min", how:"Ponés una toalla enrollada o el respaldo de una silla a nivel de los omóplatos, dejás caer la espalda hacia atrás con los brazos extendidos sobre la cabeza. Contrarresta la postura jorobada de la bici." },
+      { name:"Pecho y hombros (doorway stretch)", time:"30s x 2", how:"Parado en una puerta, codos a 90° apoyados en el marco, inclinás el cuerpo hacia adelante hasta sentir el pecho abrirse. Compensa horas en posición aerodinámica." },
+      { name:"Cuello y trapecios", time:"20s x 3 posiciones", how:"Inclinás suavemente la oreja al hombro, luego diagonales (oreja hacia rodilla opuesta), luego chincheta al pecho. Siempre suave. El cuello sostiene el casco horas." },
+      { name:"Elongación de espalda baja (child's pose)", time:"60s", how:"Rodillas en el piso, sentás los glúteos sobre los talones, brazos extendidos al frente. Respirás profundo permitiendo que la espalda se alargue con cada exhalación. Cierre perfecto." },
+    ]
+  }
+};
+
+// ---------- Nutrición timing actualizada ----------
+// Cálculos para Sergio (74.9kg) basados en evidencia científica
+const NUTR_TIMING = {
+  descanso:{
+    pre: null,
+    during: null,
+    post: null,
+    tip:"Día sin entreno: déficit calórico suave. Priorizá proteína para conservar músculo (InBody: meta cero pérdida de masa magra). Vegetales libres."
+  },
+  endurance:{
+    pre:{ time:"1–2h antes", items:["½ taza avena + 1 banano (≈60g carbo)", "O: 2 tostadas integrales + mermelada", "Evitá: grasas, fibra alta, proteína pesada"], note:"Carbo de fácil digestión. Estómago liviano en la bici." },
+    during:{ freq:"cada 45–60min", items:["Banano mediano (27g carbo)","Agua de pipa (electrolitos naturales + 15g carbo)","Barrita Tosh/similar (25–30g carbo)"], note:"Para rides de 60–90min: 30–50g carbo/h. FC <150 puede usar más grasa, pero igualmente cargá para no llegar vacío." },
+    post:{ window:"Primeros 45 min ← VENTANA CRÍTICA", items:["Greek yogurt Protein Power + banano (≈30g proteína + 30g carbo)","O: 2 huevos + 1 taza arroz + fruta","Hidratación: 500ml por cada hora de ride"], note:"La síntesis de glucógeno muscular es máxima en esta ventana. Si la perdés, la recuperación se alarga 24h." }
+  },
+  calidad:{
+    pre:{ time:"2–3h antes", items:["1 taza arroz + pechuga 90g (comida completa)","O 1h antes: 2 tortillas + mermelada + café negro"], note:"Los intervalos demandan glucógeno lleno. Si llegás vacío, no podés rendir en Z4." },
+    during:{ freq:"cada 30–45min", items:["Gel energético o 2 dátiles (25g carbo rápido)","Bebida con electrolitos y carbos (500ml/h)"], note:"Carbo durante la sesión mantiene la potencia en los últimos intervalos." },
+    post:{ window:"Primeros 30 min ← MÁS URGENTE que en Z2", items:["Batido: 300ml leche + 1 banano + 2 cdas proteína en polvo (o yogurt)","Comida 1h después: arroz + proteína + vegetales"], note:"Los intervalos vacían el glucógeno casi por completo. La ventana post es más corta y más importante." }
+  },
+  largo:{
+    pre:{ time:"Noche anterior + 2h antes", items:["NOCHE ANTERIOR: arroz o pasta + pollo + vegetales (carga de glucógeno)","2h antes: avena + miel + banano + café (≈80g carbo total)","Hidratación extra: 500ml agua con sal la noche anterior"], note:"El Vegabikes dura 3–4h. El glucógeno muscular dura ~90min. Llegás cargado o te hundís." },
+    during:{ freq:"cada 20–30min desde el minuto 20", items:["60–90g carbo por hora (mezcla glucosa+fructosa absorbe más)","Ej: banano + gel + agua azucarada cada hora","Sal: 1 pastilla de electrolitos cada 45min en calor","Agua: 500–750ml por hora (más si hace calor)"], note:"El error más común: esperar a tener hambre. Cuando sentís hambre ya estás en déficit. Cargá preventivo." },
+    post:{ window:"Inmediatamente al bajar de la bici", items:["INMEDIATO (0–30min): agua de pipa + banano + proteína (Greek yogurt o shake)","COMIDA (1–2h): arroz + proteína + aguacate + vegetales (≈1.2g carbo/kg = 90g carbo para vos)","ANTES DE DORMIR: yogurt griego + frutas (proteína lenta para recuperación nocturna)"], note:"Después del Vegabikes el cuerpo consume glucógeno por horas. Si no cargás bien, el lunes el readiness va a estar bajo. Por eso Garmin muestra Body Battery bajo después de Nicoya." }
+  }
+};
+const STRENGTH = {
+  A: { // Bloque 1 y 2: fuerza base
+    name:"Fuerza base · 35–40min",
+    note:"2×/semana. Dejá al menos 1 día de descanso entre sesiones. Después de la bici o por separado.",
+    exercises:[
+      { name:"Sentadilla búlgara (split squat)", sets:3, reps:"10 c/pierna", rest:"90s",
+        tip:"Pie trasero en silla, rodilla delantera NO pasa la punta del pie. Bajá lento (3s), subí explosivo. Trabajás cuádriceps + glúteos = motor de la bici." },
+      { name:"Peso muerto rumano (RDL)", sets:3, reps:"10", rest:"90s",
+        tip:"Con mancuernas o mochila cargada. Espalda recta, bisagra de cadera, sentís tirón en isquiotibiales. Clave para subidas y proteger la espalda en el Edge." },
+      { name:"Zancada lateral (lateral lunge)", sets:3, reps:"10 c/lado", rest:"60s",
+        tip:"Paso amplio al lado, bajás sobre ese pie, rodilla alineada. Activa aductores y estabilizadores de cadera — músculos que el ciclismo ignora." },
+      { name:"Elevación de talones (calf raise)", sets:3, reps:"15", rest:"45s",
+        tip:"En un escalón, bajá hasta el fondo, subí hasta el tope. Lento en la bajada. Pantorrillas potentes = pedaleo más eficiente." },
+      { name:"Plancha frontal", sets:3, reps:"40s", rest:"30s",
+        tip:"Codos bajo los hombros, cuerpo en línea recta. NO dejes caer la cadera ni levantarla. Core estable = menos energía malgastada en la bici." },
+      { name:"Plancha lateral", sets:3, reps:"30s c/lado", rest:"30s",
+        tip:"Codo bajo el hombro, cadera arriba. Mirá al frente. Estabilizadores laterales que protegen la columna en rides largos." },
+      { name:"Superman (extensión de espalda)", sets:3, reps:"12", rest:"30s",
+        tip:"Boca abajo, levantás brazos y piernas simultáneamente, aguantás 2s arriba. Erector espinal fuerte = no te duele la espalda después de 5h." },
+      { name:"Flexiones de brazos", sets:3, reps:"10–15", rest:"60s",
+        tip:"Manos a ancho de hombros, cuerpo recto. Si es fácil, elevá los pies. Tren superior estable para aguantar posición aero." },
+    ]
+  },
+  B: { // Cerca de competencia: activación, no fatiga
+    name:"Activación · 20min",
+    note:"1×/semana, sin llegar al fallo. Mantener el estímulo sin acumular fatiga.",
+    exercises:[
+      { name:"Sentadilla con salto (jump squat)", sets:3, reps:"8", rest:"90s",
+        tip:"Bajás a media sentadilla y saltás lo más alto que podés. Activa el sistema neuromuscular para ataques y sprints." },
+      { name:"Zancada caminando", sets:2, reps:"12 c/pierna", rest:"60s",
+        tip:"Pasos grandes hacia adelante, rodilla casi toca el piso. Activa cadera y glúteos sin sobrecargar." },
+      { name:"Plancha con toque de hombro", sets:2, reps:"10 c/lado", rest:"45s",
+        tip:"En posición de flexión, tocás el hombro contrario alternando. Core antirotatorio = pedaleo más eficiente." },
+    ]
+  }
+};
+
+// Plan de la semana con fuerza integrada
 function dayPlan(date){
   const iso=isoOf(date), wd=date.getDay(), ph=phaseFor(iso);
   // carreras
@@ -400,31 +526,39 @@ function dayPlan(date){
       return { title:r.name, sub:(r.prio==="A"?"CARRERA A · ":"")+(r.type), cls:"t-red", locked:true };
     }
   }
-  // martes oficina
-  if(wd===2 && SCHED.officeTue) return { title:"Descanso", sub:"Oficina — sin entreno", cls:"t-gray" };
-  // día completo bloqueado por calendario (viaje, hike, etc.)
+  // día bloqueado por calendario
   if((SCHED.busyAll||[]).includes(iso)){
     const ev=(SCHED.events||[]).find(e=>e.date===iso && e.allDay);
     return { title:"Bloqueado", sub:(ev?ev.summary+" · ":"")+"calendario", cls:"t-gray" };
   }
+  // martes oficina
+  if(wd===2 && SCHED.officeTue) return { title:"Descanso", sub:"Oficina — sin entreno", cls:"t-gray" };
   // sábado grupeta
   if(wd===6 && SCHED.satGroup){
-    const hard = DATA.today.readiness>=50;
-    return { title:"Vegabikes (grupeta)", sub: hard? "Día duro · empujá fuerte":"Vas igual, pero sentate en grupeta y no tires", cls:"t-yellow" };
+    return { title:"Vegabikes (grupeta)", sub:"Día duro · empujá en la rueda", cls:"t-yellow" };
   }
-  const pmBusy = SCHED.busyPM.includes(iso);
-  const win = wd===1 ? "Solo 5:30–6:30am (baile en la noche)"
-            : pmBusy ? "Solo en la mañana (cita en la tarde)"
+  const pmBusy = (SCHED.busyPM||[]).includes(iso);
+  const win = wd===1 ? "5:30–6:30am (baile en la noche)"
+            : pmBusy ? "Solo mañana (cita en la tarde)"
             : "Mañana o tarde";
-  // intensidad según fase
-  let s;
-  if(ph.name.startsWith("Recuper")) s={title:"Z2 suave 60 min", sub:win, cls:"t-blue"};
-  else if(wd===3) s={title:"Calidad: intervalos umbral", sub:win+" · 4×8min Z4", cls:"t-yellow"};
-  else if(wd===5) s={title:"Suave / aperturas", sub:win+" · pre-sábado", cls:"t-blue"};
-  else if(wd===0) s={title:"Z2 largo o recuperación", sub:"Según cómo venga el sábado", cls:"t-green"};
-  else s={title:"Z2 endurance 75 min", sub:win+" · cadencia 90–100", cls:"t-green"};
-  if(wd===1) s.title="Z1–Z2 suave 45 min";
-  return s;
+  // fuerza: miércoles (bici al amanecer + fuerza tarde) o jueves
+  if(wd===3){
+    if(ph.name.startsWith("Recuper")||ph.name.startsWith("Chirripó"))
+      return { title:"Z2 suave · 60min", sub:win+" · FC 120–135", cls:"t-blue" };
+    return { title:"Bici Z2 + Fuerza base", sub:win+" · 60min bici AM · fuerza PM 35min", cls:"t-violet" };
+  }
+  if(wd===4){
+    if(ph.name.startsWith("Específico")||ph.name.startsWith("Pico")||ph.name.startsWith("Build"))
+      return { title:"Intervalos umbral · 4×8min Z4", sub:win+" · FC 162–178", cls:"t-yellow" };
+    return { title:"Z2 endurance · 75min", sub:win+" · cadencia 90–100rpm", cls:"t-green" };
+  }
+  if(wd===5) return { title:"Suave Z1–Z2 · 45min", sub:win+" · piernas frescas para el sábado", cls:"t-blue" };
+  if(wd===0){
+    if(ph.name.startsWith("Recuper")) return { title:"Descanso o caminata", sub:"Recuperación activa", cls:"t-gray" };
+    return { title:"Fuerza base · 35min", sub:"En casa · rutina de piernas y core", cls:"t-violet" };
+  }
+  if(wd===1) return { title:"Z1–Z2 suave · 45min", sub:win, cls:"t-blue" };
+  return { title:"Z2 base · 60min", sub:win, cls:"t-green" };
 }
 
 // ===================== RENDER: HOY ====================================
@@ -550,6 +684,54 @@ function renderPlan(){
       <h3>Próximos 7 días</h3>
       ${days}
     </div>
+    <div class="card" id="strengthCard">
+      <h3>Fuerza complementaria · en casa</h3>
+      <div class="muted" style="font-size:13px;margin-bottom:12px">2×/semana (Dom + Mié tarde). 35–40 min. Sin equipamiento — solo tu peso y una silla.</div>
+      ${STRENGTH.A.exercises.map((e,i)=>`
+        <div style="padding:11px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <b style="font-size:14px">${i+1}. ${esc(e.name)}</b>
+            <span class="mono muted" style="font-size:11px;white-space:nowrap">${esc(e.sets)}×${esc(e.reps)}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <span class="tag t-gray">Descanso ${esc(e.rest)}</span>
+          </div>
+          <div class="muted" style="font-size:12.5px;margin-top:5px;line-height:1.5">${esc(e.tip)}</div>
+        </div>`).join("")}
+      <div class="muted" style="font-size:12px;margin-top:10px">Última semana antes de carrera → pasás a Activación 20min (3 ejercicios, sin llegar al fallo).</div>
+    </div>
+
+    <div class="card">
+      <h3>🔥 Antes de cada ride · calentamiento dinámico</h3>
+      <div style="background:var(--r-blue-bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--r-blue)">
+        <b>¿Por qué NO estiramiento estático antes?</b> Estudios del Journal of Sports Medicine muestran que mantener un estiramiento 30s antes reduce la potencia hasta un 8% y aumenta el riesgo de lesión. Usás movimientos dinámicos que activan sin inhibir.
+      </div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">6–8 minutos. Hacelo antes de subir a la bici.</div>
+      ${STRETCH.pre.items.map((s,i)=>`
+        <div style="padding:10px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+            <b style="font-size:14px">${i+1}. ${esc(s.name)}</b>
+            <span class="tag t-green" style="white-space:nowrap">${esc(s.time)}</span>
+          </div>
+          <div class="muted" style="font-size:12.5px;margin-top:5px;line-height:1.5">${esc(s.how)}</div>
+        </div>`).join("")}
+    </div>
+
+    <div class="card">
+      <h3>🧊 Después de cada ride · estiramiento estático</h3>
+      <div style="background:var(--r-green-bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--r-green)">
+        Con el músculo caliente el tejido conectivo es más elástico. Hold de 30–45s por posición. Mínimo 3–4×/semana. Las lesiones más comunes del ciclista (IT band, rodilla, espalda baja) se previenen con esto.
+      </div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">15–20 minutos. Podés hacerlo mientras esperás que se caliente la comida post-ride.</div>
+      ${STRETCH.post.items.map((s,i)=>`
+        <div style="padding:10px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+            <b style="font-size:14px">${i+1}. ${esc(s.name)}</b>
+            <span class="tag t-blue" style="white-space:nowrap">${esc(s.time)}</span>
+          </div>
+          <div class="muted" style="font-size:12.5px;margin-top:5px;line-height:1.5">${esc(s.how)}</div>
+        </div>`).join("")}
+    </div>
     <div class="card">
       <h3>Zonas cardíacas · FC (LTHR ${DATA.athlete.lthr})</h3>
       ${DATA.zones.map(z=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px">
@@ -666,20 +848,51 @@ function renderComida(){
     <div style="display:flex;justify-content:space-between;gap:10px"><b style="font-size:14px">${esc(x.m)}</b><span class="mono muted" style="font-size:11px">${esc(x.ex)}</span></div>
     <div class="muted" style="font-size:13px;margin-top:2px">${esc(x.t)}</div></div>`).join("");
 
+  const nt = NUTR_TIMING[key] || NUTR_TIMING.descanso;
+  function timingCard(phase, data, color){
+    if(!data) return '';
+    const colors={pre:"var(--r-blue)",during:"var(--r-yellow)",post:"var(--r-green)"};
+    const bgs={pre:"var(--r-blue-bg)",during:"var(--r-yellow-bg)",post:"var(--r-green-bg)"};
+    const labels={pre:"ANTES",during:"DURANTE",post:"DESPUÉS"};
+    return `<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px">
+      <div style="background:${bgs[phase]};color:${colors[phase]};padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center">
+        <span>${labels[phase]}</span>
+        ${data.time?`<span style="font-weight:500;text-transform:none;font-size:12px">${esc(data.time)}</span>`:data.freq?`<span style="font-weight:500;text-transform:none;font-size:12px">${esc(data.freq)}</span>`:''}
+      </div>
+      <div style="padding:12px 14px">
+        <ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.7">
+          ${data.items.map(i=>`<li>${esc(i)}</li>`).join("")}
+        </ul>
+        ${data.window?`<div style="margin-top:8px;font-size:12.5px;font-weight:600;color:${colors[phase]}">${esc(data.window)}</div>`:''}
+        ${data.note?`<div class="muted" style="font-size:12.5px;margin-top:6px;line-height:1.5;border-top:1px solid var(--line);padding-top:8px">${esc(data.note)}</div>`:''}
+      </div>
+    </div>`;
+  }
+
   document.getElementById("tab-comida").innerHTML = `
     <div class="card" style="border-color:#d9c7a3;background:#FDFBF5">
-      <h3>Qué comer hoy · según tu entreno</h3>
-      <span class="tag ${dt.cls}">${dt.name}</span>
-      <div style="margin-top:10px">${exLine(dt.ex)}</div>
+      <h3>Qué comer hoy · ${dt.name}</h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <span class="tag ${dt.cls}">${dt.name}</span>
+        <span class="tag t-yellow">Hoy</span>
+      </div>
+      ${exLine(dt.ex)}
       ${macroLine(dt.ex)}
-      <div class="muted" style="font-size:13.5px;margin-top:10px">${esc(dt.idea)}</div>
-      ${dt.bike?`<div style="margin-top:8px;font-size:13.5px"><b>En la bici:</b> <span class="muted">${esc(dt.bike)}</span></div>`:''}
+      <div class="muted" style="font-size:13px;margin-top:10px">${esc(dt.idea)}</div>
     </div>
 
     <div class="card">
-      <h3>Ejemplo de día</h3>
+      <h3>Timing de nutrición · antes, durante y después</h3>
+      ${nt.tip?`<div class="muted" style="font-size:13px;margin-bottom:12px">${esc(nt.tip)}</div>`:''}
+      ${timingCard('pre', nt.pre, 'blue')}
+      ${timingCard('during', nt.during, 'yellow')}
+      ${timingCard('post', nt.post, 'green')}
+    </div>
+
+    <div class="card">
+      <h3>Ejemplo de comidas del día</h3>
       ${meals}
-      <div class="muted" style="font-size:12px;margin-top:10px">Productos de tus listas de Más Que Calorías. El coach te arma el día completo si le pedís.</div>
+      <div class="muted" style="font-size:12px;margin-top:10px">Productos de tus listas de Más Que Calorías. Preguntale al coach si querés un día completo personalizado.</div>
     </div>
 
     <div class="card">
@@ -690,7 +903,7 @@ function renderComida(){
         ${metric("Grasa a bajar", g.controlGrasa, " kg")}
         ${metric("Músculo", "0", " kg")}
       </div>
-      <div class="muted" style="font-size:13px;margin-top:10px">Bajar grasa <b style="color:var(--ink)">conservando músculo</b>: por eso la proteína se mantiene alta todos los días y el carbo sube solo cuando entrenás fuerte. TMB ${g.tmb} kcal.</div>
+      <div class="muted" style="font-size:13px;margin-top:10px">Bajar grasa <b style="color:var(--ink)">conservando músculo</b>: proteína alta todos los días, carbo sube con la intensidad. TMB ${g.tmb} kcal.</div>
     </div>
 
     <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 10px">Intercambios por tipo de día</h3>
@@ -794,12 +1007,52 @@ async function ask(text){
     const messages=[{role:"system",content:coachSystemPrompt()}, ...chatHistory];
     const resp=await puter.ai.chat(messages,{model:"claude-sonnet-4-6"});
     const out=extractText(resp);
-    typing.textContent=out;
+    typing.innerHTML=renderMd(out);
     chatHistory.push({role:"assistant",content:out});
   }catch(e){
     typing.classList.remove("a"); typing.className="msg sys";
     typing.textContent="No pude conectar con el coach. Revisá tu sesión de Puter e intentá de nuevo.";
   }
+}
+function renderMd(text){
+  // Tablas markdown → HTML
+  const lines = text.split('\n');
+  let html = '', inTable = false, tableRows = [];
+  for(let i=0; i<lines.length; i++){
+    const l = lines[i];
+    if(l.trim().startsWith('|') && l.trim().endsWith('|')){
+      if(!inTable){ inTable=true; tableRows=[]; }
+      tableRows.push(l.trim().slice(1,-1).split('|').map(c=>c.trim()));
+    } else {
+      if(inTable){
+        // flush table
+        const head=tableRows[0], body=tableRows.slice(2);
+        html+=`<div style="overflow-x:auto;margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr>${head.map(c=>`<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--line);font-weight:600">${esc(c)}</th>`).join('')}</tr></thead>
+          <tbody>${body.map(row=>`<tr>${row.map(c=>`<td style="padding:6px 8px;border-bottom:1px solid var(--line)">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table></div>`;
+        inTable=false; tableRows=[];
+      }
+      // Headers
+      let ln = l.replace(/^### (.+)/, '<b style="font-size:14px;display:block;margin-top:12px;margin-bottom:4px">$1</b>')
+                .replace(/^## (.+)/, '<b style="font-size:15px;display:block;margin-top:14px;margin-bottom:5px">$1</b>')
+                .replace(/^# (.+)/, '<b style="font-size:16px;display:block;margin-top:16px;margin-bottom:6px">$1</b>')
+                .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+                .replace(/\*(.+?)\*/g,'<i>$1</i>')
+                .replace(/^[-•]\s+(.+)/, '<div style="display:flex;gap:6px;margin:3px 0"><span>•</span><span>$1</span></div>')
+                .replace(/^(\d+)\.\s+(.+)/, '<div style="display:flex;gap:6px;margin:3px 0"><span style="color:var(--muted)">$1.</span><span>$2</span></div>');
+      if(l.trim()==='---'||l.trim()==='—') ln='<hr style="border:none;border-top:1px solid var(--line);margin:10px 0">';
+      html += (ln===l ? esc(l) : ln) + (l.trim()==='' ? '<br>' : '\n');
+    }
+  }
+  if(inTable){
+    const head=tableRows[0], body=tableRows.slice(2);
+    html+=`<div style="overflow-x:auto;margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>${head.map(c=>`<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--line);font-weight:600">${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${body.map(row=>`<tr>${row.map(c=>`<td style="padding:6px 8px;border-bottom:1px solid var(--line)">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  return html;
 }
 function extractText(resp){
   try{
@@ -839,10 +1092,19 @@ function toast(msg){
 function rerender(){ if(TABS[CURRENT] && TABS[CURRENT][1]) TABS[CURRENT][1](); }
 
 async function doRefresh(){
-  toast("Actualizando…");
+  const btn=document.getElementById("refreshBtn");
+  btn.style.opacity="0.4";
+  btn.style.pointerEvents="none";
   const r=await fetchLive();
-  initHeader(); rerender();
-  toast(r.ok ? "Datos actualizados" : (r.reason==="nopass" ? "Poné tu frase en Ajustes" : "Sin datos nuevos (usando demo)"));
+  initHeader();
+  rerender();
+  btn.style.opacity="";
+  btn.style.pointerEvents="";
+  const src=DATA.source==="live"
+    ? "Datos en vivo · "+DATA.fetchedAt.slice(11,16)
+    : "Sin datos nuevos";
+  document.getElementById("srcBadge") && (document.getElementById("srcBadge").textContent=src);
+  toast(r.ok ? "✓ "+src : (r.reason==="nopass" ? "Poné tu frase en Ajustes ⚙" : "Sin cambios — usando demo"));
 }
 
 function openSettings(){
