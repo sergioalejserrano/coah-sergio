@@ -64,11 +64,14 @@ def build_payload(api):
         for day in bb_data:
             vals = day.get("bodyBatteryValuesArray") or []
             if vals:
-                # cada entrada es [timestamp_ms, valor]; tomamos el máximo del día
-                peak = max(v[1] for v in vals if v and len(v) > 1)
+                # cada entrada es [timestamp_ms, valor]; v[1] puede ser None → filtrar
+                peak = max(
+                    (v[1] for v in vals if v and len(v) > 1 and v[1] is not None),
+                    default=0
+                )
             else:
                 peak = day.get("charged") or 0
-            bb7.append(peak)
+            bb7.append(int(peak) if peak else 0)
 
         print(f"  bb7 peaks: {bb7}")
 
@@ -90,10 +93,13 @@ def build_payload(api):
                 break
     if not resting_hr:
         for d in [today, yesterday]:
-            rhr = safe(api.get_rhr_day, d, default=None)
-            if rhr:
-                print(f"  DEBUG rhr_day keys ({d}): {list(rhr.keys()) if isinstance(rhr, dict) else type(rhr).__name__}")
-                resting_hr = (rhr.get("restingHeartRate") or rhr.get("value") or 0) if isinstance(rhr, dict) else 0
+            rhr_fn = getattr(api, 'get_rhr_day', None)
+            if rhr_fn is None:
+                break
+            rhr = safe(rhr_fn, d, default=None)
+            if rhr and isinstance(rhr, dict):
+                print(f"  DEBUG rhr_day keys ({d}): {list(rhr.keys())}")
+                resting_hr = rhr.get("restingHeartRate") or rhr.get("value") or 0
                 if resting_hr:
                     break
 
@@ -178,7 +184,7 @@ def build_payload(api):
     print(f"  actividad: {act_str}")
 
     payload = {
-        "ts":         datetime.datetime.utcnow().isoformat() + "Z",
+        "ts":         datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "readiness":  int(readiness),
         "recovery":   int(recovery_mins),
         "hrv":        float(hrv),
