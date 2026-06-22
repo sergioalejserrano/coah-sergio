@@ -181,21 +181,18 @@ def build_payload(api):
                          or next(iter(tlb_map.values()), {}))
                 print(f"  DEBUG inner keys: {list(inner.keys()) if isinstance(inner, dict) else inner}")
                 if isinstance(inner, dict):
-                    aerobic_high = (inner.get("aerobicHighLoad")
-                                    or inner.get("aerobicHigh") or 0)
-                    aerobic_low  = (inner.get("aerobicLowLoad")
-                                    or inner.get("aerobicLow") or 0)
-                    anaerobic    = (inner.get("anaerobicLoad")
-                                    or inner.get("anaerobic") or 0)
-                    tgt_ah = inner.get("aerobicHighLoadTarget") or {}
-                    tgt_al = inner.get("aerobicLowLoadTarget") or {}
-                    tgt_an = inner.get("anaerobicLoadTarget") or {}
-                    ah_min = tgt_ah.get("minValue") or tgt_ah.get("min") or ah_min
-                    ah_max = tgt_ah.get("maxValue") or tgt_ah.get("max") or ah_max
-                    al_min = tgt_al.get("minValue") or tgt_al.get("min") or al_min
-                    al_max = tgt_al.get("maxValue") or tgt_al.get("max") or al_max
-                    an_min = tgt_an.get("minValue") or tgt_an.get("min") or an_min
-                    an_max = tgt_an.get("maxValue") or tgt_an.get("max") or an_max
+                    # Claves confirmadas por el log del 22 jun 2026
+                    aerobic_high = inner.get("monthlyLoadAerobicHigh") or 0
+                    aerobic_low  = inner.get("monthlyLoadAerobicLow")  or 0
+                    anaerobic    = inner.get("monthlyLoadAnaerobic")   or 0
+                    ah_min = inner.get("monthlyLoadAerobicHighTargetMin") or ah_min
+                    ah_max = inner.get("monthlyLoadAerobicHighTargetMax") or ah_max
+                    al_min = inner.get("monthlyLoadAerobicLowTargetMin")  or al_min
+                    al_max = inner.get("monthlyLoadAerobicLowTargetMax")  or al_max
+                    an_min = inner.get("monthlyLoadAnaerobicTargetMin")   or an_min
+                    an_max = inner.get("monthlyLoadAnaerobicTargetMax")   or an_max
+                    print(f"  DEBUG load: aeroHigh={aerobic_high} aeroLow={aerobic_low} anaerobic={anaerobic}")
+                    print(f"  DEBUG ranges: ah={ah_min}-{ah_max} al={al_min}-{al_max} an={an_min}-{an_max}")
             else:
                 print("  warn: metricsTrainingLoadBalanceDTOMap vacio")
         else:
