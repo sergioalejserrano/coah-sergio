@@ -282,7 +282,7 @@ select.form-ctrl option{background:var(--s2)}
 </div>
 
 <!-- AI file upload overlay -->
-<input type="file" id="ai-file-input" accept="image/*" style="display:none" onchange="processAIFile(event)">
+<input type="file" id="ai-file-input" accept="image/*,.pdf" style="display:none" onchange="processAIFile(event)">
 <div id="ai-upload-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:32px;text-align:center">
   <div style="width:44px;height:44px;border:3px solid var(--green);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></div>
   <div style="font-size:14px;color:var(--text)" id="ai-upload-status">Analizando imagen...</div>
@@ -499,6 +499,11 @@ select.form-ctrl option{background:var(--s2)}
   </div>
 
   <!-- Races link -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="label" style="margin-bottom:10px">Dias de oficina (sin entreno)</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="office-grid"></div>
+    <div style="font-size:11px;color:var(--t3);margin-top:8px">Toca para activar/desactivar</div>
+  </div>
   <button class="btn btn-secondary" style="width:100%;margin-bottom:12px" onclick="showCarreras()">
     Ver calendario de carreras
   </button>
@@ -716,12 +721,15 @@ const PROFILE={
 // ═══════════════════════════════════════════════════════════════
 // SESSION RECOMMENDATION
 // ═══════════════════════════════════════════════════════════════
+function getOfficeDays(){try{return JSON.parse(localStorage.getItem('office_days')||'[2]');}catch(_){return[2];}}
+function setOfficeDays(arr){localStorage.setItem('office_days',JSON.stringify(arr));}
+function toggleOfficeDay(i){const od=getOfficeDays(),x=od.indexOf(i);if(x>=0)od.splice(x,1);else od.push(i);setOfficeDays(od);renderSalud();renderPlan();renderComida();}
 function getSession(gData, dayOfWeek){
   const rd=gData?.readiness||0, rec=gData?.recovery||0, bb=gData?.bb||0;
   const phase=getCurrentPhase();
 
   // Martes: descanso fijo (oficina)
-  if(dayOfWeek===2) return {dot:'rest',title:'Descanso activo',desc:'Oficina — sin entreno. Caminata 20min si queres mover las piernas.',duration:0,device:''};
+  if(getOfficeDays().includes(dayOfWeek)) return {dot:'rest',title:'Descanso (oficina)',desc:'Dia de oficina. Sin entreno. Caminata 20min si queres.',duration:0,device:''};
   // Sabado: Vegabikes siempre
   if(dayOfWeek===6) return {dot:'race',title:'Vegabikes Grupeta',desc:'Salida fija 6:00am. Variable segun lo que decida el grupo.',duration:180,device:'Edge 1040'};
 
@@ -950,6 +958,7 @@ function renderPlan(){
     const dow=d.getDay();
     const isRest=dow===2; // martes
     const sess=getSession(gData||{},dow);
+  window._lastSess=sess;
     const dotColors={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
     return `<div class="day-cell${isToday?' today':''}${isRest?' rest-day':''}" onclick="openDaySheet(${i})">
       <div class="day-name">${DAY_NAMES[dow]}</div>
@@ -1011,6 +1020,12 @@ function renderPlan(){
   ].join('');
 }
 
+function getSleepRec(dow){
+  if(dow===1) return "7-7.5h disponibles hoy. Baile termina 10pm, llegada a casa ~11pm. Dormite apenas puedas.";
+  if(dow===6) return "7.5-8h. Vegabikes sale 6am, acostate antes de las 10:30pm.";
+  if(getOfficeDays().includes(dow)) return "8h. Oficina manana. Acostate a las 10:30pm.";
+  return "8-9h. Acostate entre 10-10:30pm para maximizar el HRV nocturno.";
+}
 function toggleMode(m){
   ['exterior','kickr'].forEach(k=>{
     const d=document.getElementById('mode-'+k);
@@ -1019,6 +1034,12 @@ function toggleMode(m){
     if(b){b.style.background=k===m?'var(--green-dim)':'var(--s2)';b.style.borderColor=k===m?'var(--green)':'var(--border)';b.style.color=k===m?'var(--text)':'var(--t2)';}
   });
 }
+function downloadTCX(){
+  const s=window._lastSess||{dot:'z2',title:'KICKR',duration:60};
+  const steps=s.dot==='quality'?[{n:'Calentamiento',t:900},{n:'Intervalo 1',t:480},{n:'Rec',t:240},{n:'Intervalo 2',t:480},{n:'Rec',t:240},{n:'Intervalo 3',t:480},{n:'Rec',t:240},{n:'Intervalo 4',t:480},{n:'Enfriamiento',t:900}]:[{n:'Calentamiento',t:600},{n:'Bloque Z2',t:2400},{n:'Enfriamiento',t:600}];
+  const xml='<?xml version="1.0" encoding="UTF-8"?><TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Workouts><Workout Sport="Biking"><Name>'+(s.title||'KICKR')+'</Name>'+steps.map((st,i)=>'<Step xsi:type="Step_t"><StepId>'+(i+1)+'</StepId><Name>'+st.n+'</Name><Duration xsi:type="Time_t"><Seconds>'+st.t+'</Seconds></Duration><Intensity>Active</Intensity></Step>').join('')+'</Workout></Workouts></TrainingCenterDatabase>';
+  const a=document.createElement('a');a.href='data:text/xml;charset=utf-8,'+encodeURIComponent(xml);a.download=(s.title||'kickr').replace(/[^a-z0-9]/gi,'_')+'.tcx';document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 function getOutdoorDesc(sess){
   const ph=getCurrentPhase().name;
   if(sess.dot==='race') return 'Grupeta Vegabikes 6:00am. Rueda con el grupo, disfrutalo. No te quemes en las subidas.';
@@ -1026,11 +1047,33 @@ function getOutdoorDesc(sess){
   if(ph==='Recuperacion') return 'Z1-Z2 ruta plana. Cartago-Dulce Nombre o similar. FC max 135bpm. Sin zonas grises. 45-75min.';
   return 'Z2 exterior. Ruta limpia de trafico. FC 120-139bpm. Cadencia 85-90rpm. 1-2 bidones + gel si supera 90min.';
 }
+function renderIntervals(steps){
+  return steps.map(s=>'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="width:4px;height:36px;background:'+s.c+';border-radius:2px;flex-shrink:0"></div><div style="flex:1"><div style="font-size:12px;font-weight:600">'+s.n+'</div><div style="font-size:11px;color:var(--t2)">'+s.d+' - '+s.w+'</div></div><div style="font-size:10px;font-weight:700;color:'+s.c+';min-width:54px;text-align:right">'+s.z+'</div></div>').join('');
+}
 function getKickrDesc(sess){
   const ph=getCurrentPhase().name;
-  if(sess.dot==='quality') return 'ERG 15min calentamiento 100-160W + 4x8min a 175-190W (Z3) con 4min a 100W + 15min vuelta a calma. Cadencia 90-95rpm. Ventilador obligatorio.';
-  if(ph==='Recuperacion') return 'ERG suave 45min a 120-145W. Cadencia libre >85rpm. Netflix activado. El objetivo es mover piernas, no entrenar.';
-  return 'ERG 60min: 10min calentamiento, bloque Z2 (140-165W), 10min enfriamiento. Cadencia 85-90rpm. Ajusta segun sensaciones.';
+  const erg='<div style="font-size:11px;background:var(--s3);border-radius:6px;padding:6px 10px;color:var(--t2);margin-bottom:10px;line-height:1.4"><b>ERG activado:</b> el rodillo ajusta la resistencia automaticamente para mantener la potencia objetivo. Solo pedala comodo.</div>';
+  if(sess.dot==="quality")
+    return erg+renderIntervals([
+      {n:"Calentamiento",d:"15 min",w:"100-160W",z:"Z1-Z2",c:"#60a5fa"},
+      {n:"Intervalo 1/4",d:"8 min",w:"175-190W",z:"Z3",c:"#f59e0b"},
+      {n:"Recuperacion",d:"4 min",w:"100W",z:"Z1",c:"#60a5fa"},
+      {n:"Intervalo 2/4",d:"8 min",w:"175-190W",z:"Z3",c:"#f59e0b"},
+      {n:"Recuperacion",d:"4 min",w:"100W",z:"Z1",c:"#60a5fa"},
+      {n:"Intervalo 3/4",d:"8 min",w:"175-190W",z:"Z3",c:"#f59e0b"},
+      {n:"Recuperacion",d:"4 min",w:"100W",z:"Z1",c:"#60a5fa"},
+      {n:"Intervalo 4/4",d:"8 min",w:"175-190W",z:"Z3",c:"#f59e0b"},
+      {n:"Enfriamiento",d:"15 min",w:"120W",z:"Z1",c:"#60a5fa"},
+    ])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Total ~90 min - Cadencia 90-95 rpm - Ventilador obligatorio</div>';
+  if(ph==="Recuperacion")
+    return erg+renderIntervals([
+      {n:"Pedaleo suave continuo",d:"45 min",w:"120-145W",z:"Z1",c:"#93c5fd"},
+    ])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Pon Netflix. El objetivo es activar la circulacion, no entrenar duro.</div>';
+  return erg+renderIntervals([
+    {n:"Calentamiento",d:"10 min",w:"100-130W",z:"Z1",c:"#60a5fa"},
+    {n:"Bloque Z2 base",d:"40 min",w:"140-165W",z:"Z2",c:"#22c55e"},
+    {n:"Enfriamiento",d:"10 min",w:"100W",z:"Z1",c:"#60a5fa"},
+  ])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Total 60 min - Cadencia 85-90 rpm</div>';
 }
 function openDaySheet(weekIdx){
   const days=getWeekDays();
@@ -1070,7 +1113,7 @@ function openDaySheet(weekIdx){
       <button id="btn-kickr" onclick="toggleMode('kickr')" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--t2);cursor:pointer;font-size:12px;font-weight:700">KICKR Indoor<br><span style="font-weight:400;font-size:10px">KICKR CORE</span></button>
     </div>
     <div id="mode-exterior" class="card-sm" style="margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(getOutdoorDesc(sess))}</div>
-    <div id="mode-kickr" class="card-sm" style="margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--t2);display:none">${esc(getKickrDesc(sess))}</div>
+    <div id="mode-kickr" style="display:none"><div class="card-sm" style="margin-bottom:8px">${getKickrDesc(sess)}</div><button onclick="downloadTCX()" style="width:100%;margin-top:2px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;color:var(--t2);cursor:pointer">Descargar entrenamiento para Garmin Connect (.tcx)</button></div>
     `:`<div class="card-sm" style="margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(sess.desc)}</div>`}
     `:'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Dia de descanso. Aprovecha para recuperar y dorme bien.</div>'}
 
@@ -1085,7 +1128,7 @@ function openDaySheet(weekIdx){
     <div style="font-size:12px;color:var(--t2);text-align:right;margin-bottom:14px">~${ixData.kcal} kcal</div>
 
     <div class="label" style="margin-bottom:8px">Sueno recomendado</div>
-    <div style="font-size:13px;color:var(--t2)">8–9h. Acostarse antes de las 10pm para optimizar HRV nocturno.</div>
+    <div style="font-size:13px;color:var(--t2)">${getSleepRec(dow)}</div>
     <div style="height:40px"></div>
   `;
 
@@ -1107,13 +1150,11 @@ function closeSheet(e){
 // RENDER: COMIDA TAB
 // ═══════════════════════════════════════════════════════════════
 function getDayType(){
-  const dow=new Date().getDay();
-  const rd=gData?.readiness||50;
-  if(dow===2) return 'descanso';
-  if(dow===6||dow===0) return 'largo';
-  if(rd>=70) return 'calidad';
-  if(rd>=40) return 'endurance';
-  return 'descanso';
+  const s=getSession(gData||{},new Date().getDay());
+  if(s.dot==='rest'||s.duration===0) return 'descanso';
+  if(s.dot==='race'||s.duration>=150) return 'largo';
+  if(s.dot==='quality') return 'calidad';
+  return 'endurance';
 }
 
 const DAY_TYPE_LABELS={
@@ -1207,6 +1248,8 @@ function renderSalud(){
   const pct=Math.min(100,Math.max(0,Math.round((wStart-wCurr)/(wStart-wGoal)*100)));
   q('#goal-pct').textContent=pct+'%';
   q('#goal-bar').style.width=pct+'%';
+  const odg=q('#office-grid');
+  if(odg){const od=getOfficeDays();const dn=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];odg.innerHTML=dn.map((n,i)=>'<div onclick="toggleOfficeDay('+i+')" style="text-align:center;padding:8px 2px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;background:'+(od.includes(i)?'var(--green-dim)':'var(--s2)')+';border:1px solid '+(od.includes(i)?'var(--green)':'var(--border)')+';color:'+(od.includes(i)?'var(--green)':'var(--t3)')+'">'+n+'</div>').join('');}
 
   // History
   q('#inbody-history').innerHTML=inbody.slice().reverse().map((m,i)=>`
@@ -1558,10 +1601,11 @@ async function processAIFile(evt){
   try{
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
     const mime=file.type||'image/jpeg';
+    const isPDF=mime==='application/pdf';
     if(_aiMode==='inbody'){
       st.textContent='Extrayendo datos InBody...';
       const prompt='Extrae estos datos de este reporte InBody y responde SOLO con JSON sin backticks: {"date":"YYYY-MM-DD","weight":X.X,"muscle":X.X,"fat":X.X,"tmb":X}. Usa null si no podes leer un valor.';
-      const resp=await puter.ai.chat([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:prompt}]}],{model:'claude-sonnet-4-6'});
+      const resp=await puter.ai.chat([{role:'user',content:[(isPDF?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:mime,data:b64}}),{type:'text',text:prompt}]}],{model:'claude-sonnet-4-6'});
       const txt=extractReply(resp);
       let parsed; try{const m=txt.match(/\{[^}]+\}/);parsed=JSON.parse(m?m[0]:txt);}catch(_){throw new Error('No se pudo leer el reporte. Intenta con mejor iluminacion.');}
       ov.style.display='none';
