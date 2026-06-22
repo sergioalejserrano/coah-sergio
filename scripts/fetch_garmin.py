@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 fetch_garmin.py — Descarga y cifra datos de Garmin para Coach Vegabikes.
+Versión final: todos los campos incluyendo load de entrenamiento, TSS y NP.
 """
-import os, sys, json, base64, secrets, datetime
+import os, json, base64, secrets, datetime
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
@@ -30,28 +31,34 @@ def encrypt(data: str, passphrase: str) -> bytes:
     return base64.b64encode(salt + iv + ct)
 
 
-# ── Utilidades de fecha ────────────────────────────────────────────────────
-def date_str(offset=0) -> str:
+# ── Fechas ─────────────────────────────────────────────────────────────────
+def date_str(offset: int = 0) -> str:
     return (datetime.date.today() - datetime.timedelta(days=offset)).isoformat()
 
+def now_utc() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ── Llamada segura a la API ────────────────────────────────────────────────
 def safe(fn, *args, default=None):
+    """Llama fn(*args); si lanza cualquier excepción retorna default y loguea."""
+    if fn is None:
+        return default
     try:
         return fn(*args)
     except Exception as e:
-        print(f"  warn {fn.__name__}{args}: {e}")
+        print(f"  warn {getattr(fn,'__name__',str(fn))}{args}: {e}")
         return default
 
 
-# ── Payload ────────────────────────────────────────────────────────────────
+# ── Payload principal ──────────────────────────────────────────────────────
 def build_payload(api):
     today     = date_str(0)
     yesterday = date_str(1)
 
-    # ── Body Battery 7 días ────────────────────────────────────────────────
-    # FIX 2: usar el último valor no-cero de bb7 como BB actual
-    bb_data = safe(api.get_body_battery, date_str(6), date_str(0), default=[])
-
-    bb7        = []
+    # ── Body Battery 7 días ─────────────────────────────────────────────────
+    bb_data = safe(api.get_body_battery, date_str(6), today, default=[])
+    bb7 = []
     bb_current = 0
 
     if bb_data:
@@ -64,7 +71,7 @@ def build_payload(api):
         for day in bb_data:
             vals = day.get("bodyBatteryValuesArray") or []
             if vals:
-                # cada entrada es [timestamp_ms, valor]; v[1] puede ser None → filtrar
+                # v[1] puede ser None → filtrar antes de max()
                 peak = max(
                     (v[1] for v in vals if v and len(v) > 1 and v[1] is not None),
                     default=0
@@ -74,30 +81,25 @@ def build_payload(api):
             bb7.append(int(peak) if peak else 0)
 
         print(f"  bb7 peaks: {bb7}")
-
-        # Último valor no-cero = BB más reciente disponible
         for v in reversed(bb7):
             if v and v > 0:
                 bb_current = v
                 break
 
-    # ── Resting HR ────────────────────────────────────────────────────────
-    # get_stats() no tiene la clave; probar get_heart_rates y get_rhr_day
+    # ── Resting HR ─────────────────────────────────────────────────────────
     resting_hr = 0
     for d in [today, yesterday]:
         hr_data = safe(api.get_heart_rates, d, default=None)
         if hr_data:
-            print(f"  DEBUG heart_rates keys ({d}): {list(hr_data.keys())[:10]}")
+            print(f"  DEBUG heart_rates keys ({d}): {list(hr_data.keys())[:12]}")
             resting_hr = hr_data.get("restingHeartRate") or 0
             if resting_hr:
                 break
     if not resting_hr:
+        rhr_fn = getattr(api, "get_rhr_day", None)
         for d in [today, yesterday]:
-            rhr_fn = getattr(api, 'get_rhr_day', None)
-            if rhr_fn is None:
-                break
             rhr = safe(rhr_fn, d, default=None)
-            if rhr and isinstance(rhr, dict):
+            if isinstance(rhr, dict):
                 print(f"  DEBUG rhr_day keys ({d}): {list(rhr.keys())}")
                 resting_hr = rhr.get("restingHeartRate") or rhr.get("value") or 0
                 if resting_hr:
@@ -105,8 +107,7 @@ def build_payload(api):
 
     print(f"  BB={bb_current} restingHR={resting_hr}")
 
-    # ── Training Readiness ────────────────────────────────────────────────
-    # FIX 1: datos pueden no estar disponibles aún hoy; probar hoy y ayer
+    # ── Training Readiness ──────────────────────────────────────────────────
     readiness = recovery_mins = hrv = sleep_score_from_readiness = 0
 
     for d in [today, yesterday]:
@@ -130,7 +131,7 @@ def build_payload(api):
 
     print(f"  readiness={readiness} recovery={recovery_mins}min hrv={hrv}ms")
 
-    # ── HRV dedicado (si readiness no lo trajo) ────────────────────────────
+    # ── HRV dedicado ────────────────────────────────────────────────────────
     if not hrv:
         for d in [today, yesterday]:
             hrv_data = safe(api.get_hrv_data, d, default=None)
@@ -140,51 +141,97 @@ def build_payload(api):
                 if hrv:
                     break
 
-    # ── Sleep ─────────────────────────────────────────────────────────────
-    # FIX 4: el script pedía fecha+1 (mañana) → sueño vacío.
-    # Garmin guarda el sueño bajo la fecha del DESPERTAR.
-    # Probamos hoy, ayer, anteayer hasta encontrar sleepTimeSeconds > 0.
+    # ── Sleep ───────────────────────────────────────────────────────────────
     sleep_hours = 0.0
     sleep_score = sleep_score_from_readiness
 
-    for offset in range(0, 4):   # hoy, ayer, anteayer, 3 días atrás
+    for offset in range(0, 4):
         d         = date_str(offset)
         sleep_raw = safe(api.get_sleep_data, d, default={})
         if not sleep_raw:
             continue
-        dto = sleep_raw.get("dailySleepDTO") or {}
-        print(f"  DEBUG sleep_dto keys ({d}): {list(dto.keys())[:8]}")
-        print(f"    calendarDate: {dto.get('calendarDate')}  sleepTimeSeconds: {dto.get('sleepTimeSeconds')}")
-
+        dto  = sleep_raw.get("dailySleepDTO") or {}
         secs = dto.get("sleepTimeSeconds") or 0
-        if secs > 0:
+        print(f"  DEBUG sleep_dto ({d}): calendarDate={dto.get('calendarDate')} sleepTimeSeconds={secs}")
+        if secs and secs > 0:
             sleep_hours = round(secs / 3600, 2)
             sleep_score = dto.get("sleepScoreValue") or dto.get("sleepScore") or sleep_score_from_readiness
             break
 
     print(f"  sleep={sleep_hours}h score={sleep_score}")
 
-    # ── Última actividad ──────────────────────────────────────────────────
-    acts    = safe(api.get_activities, 0, 1, default=[])
-    act_str = ""
+    # ── Training Load Balance (foco de carga) ───────────────────────────────
+    aerobic_high = aerobic_low = anaerobic = 0
+    ah_min, ah_max = 700, 1100
+    al_min, al_max = 600, 900
+    an_min, an_max = 200, 500
+
+    # Intento 1: get_training_load_details(startdate, enddate) — si existe
+    load_fn = getattr(api, "get_training_load_details", None)
+    load_data = safe(load_fn, date_str(28), today, default=None) if load_fn else None
+
+    # Intento 2: get_training_load(startdate, enddate)
+    if not load_data:
+        load_fn2 = getattr(api, "get_training_load", None)
+        load_data = safe(load_fn2, date_str(28), today, default=None) if load_fn2 else None
+
+    # Intento 3: get_training_status(date) — extrae lo que trae
+    ts_data = safe(api.get_training_status, yesterday, default=None)
+    if ts_data:
+        print(f"  DEBUG training_status keys: {list(ts_data.keys()) if isinstance(ts_data, dict) else type(ts_data).__name__}")
+
+    if load_data:
+        print(f"  DEBUG load_data keys: {list(load_data.keys()) if isinstance(load_data, dict) else type(load_data).__name__}")
+        if isinstance(load_data, dict):
+            aerobic_high = (load_data.get("aerobicHighLoad")
+                            or load_data.get("aerobicHigh") or 0)
+            aerobic_low  = (load_data.get("aerobicLowLoad")
+                            or load_data.get("aerobicLow") or 0)
+            anaerobic    = (load_data.get("anaerobicLoad")
+                            or load_data.get("anaerobic") or 0)
+            # Rangos óptimos si los trae la API
+            tgt_ah = load_data.get("aerobicHighLoadTarget") or {}
+            tgt_al = load_data.get("aerobicLowLoadTarget") or {}
+            tgt_an = load_data.get("anaerobicLoadTarget") or {}
+            ah_min = tgt_ah.get("minValue") or tgt_ah.get("min") or ah_min
+            ah_max = tgt_ah.get("maxValue") or tgt_ah.get("max") or ah_max
+            al_min = tgt_al.get("minValue") or tgt_al.get("min") or al_min
+            al_max = tgt_al.get("maxValue") or tgt_al.get("max") or al_max
+            an_min = tgt_an.get("minValue") or tgt_an.get("min") or an_min
+            an_max = tgt_an.get("maxValue") or tgt_an.get("max") or an_max
+    else:
+        print("  warn: load_data no disponible — foco de carga quedará en 0")
+
+    print(f"  load aerobicHigh={aerobic_high} aerobicLow={aerobic_low} anaerobic={anaerobic}")
+
+    # ── Última actividad ────────────────────────────────────────────────────
+    acts = safe(api.get_activities, 0, 1, default=[])
+    act_str  = ""
+    tss      = 0
+    norm_pwr = 0
+    vo2max   = 0
+
     if acts:
         a = acts[0]
-        print(f"  DEBUG activity[0] keys: {list(a.keys())}")
+        print(f"  DEBUG activity[0] keys (primeras 10): {list(a.keys())[:10]}")
         for k in ["activityId", "activityName", "startTimeLocal", "startTimeGMT",
                   "activityType", "distance", "duration"]:
             if k in a:
                 print(f"    {k}: {a[k]}")
 
-        name    = a.get("activityName") or "Actividad"
-        dist_km = round((a.get("distance") or 0) / 1000, 1)
-        hr      = a.get("averageHR") or a.get("maxHR") or 0
-        power   = a.get("avgPower") or a.get("averagePower") or 0
-        act_str = f"{name} {dist_km}km FC{hr} {power}W"
+        name     = a.get("activityName") or "Actividad"
+        dist_km  = round((a.get("distance") or 0) / 1000, 1)
+        hr       = a.get("averageHR") or a.get("maxHR") or 0
+        power    = a.get("avgPower") or a.get("averagePower") or 0
+        tss      = int(a.get("trainingStressScore") or 0)
+        norm_pwr = int(a.get("normPower") or a.get("normalizedPower") or 0)
+        vo2max   = float(a.get("vO2MaxValue") or 0)
+        act_str  = f"{name} {dist_km}km FC{hr} {power}W"
 
-    print(f"  actividad: {act_str}")
+    print(f"  actividad: {act_str}  TSS={tss} NP={norm_pwr}W VO2max={vo2max}")
 
     payload = {
-        "ts":         datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ts":         now_utc(),
         "readiness":  int(readiness),
         "recovery":   int(recovery_mins),
         "hrv":        float(hrv),
@@ -194,9 +241,22 @@ def build_payload(api):
         "bb7":        bb7,
         "restingHR":  int(resting_hr),
         "activity":   act_str,
+        "tss":        tss,
+        "normPower":  norm_pwr,
+        "vo2max":     vo2max,
+        "load": {
+            "aerobicHigh": int(aerobic_high),
+            "aerobicLow":  int(aerobic_low),
+            "anaerobic":   int(anaerobic),
+            "ahMin": ah_min, "ahMax": ah_max,
+            "alMin": al_min, "alMax": al_max,
+            "anMin": an_min, "anMax": an_max,
+        },
     }
 
-    print(f"Readiness {payload['readiness']} · BB {payload['bb']} · actividad {payload.get('activity','—')}")
+    print(f"Readiness {payload['readiness']} · BB {payload['bb']} · "
+          f"sleep {payload['sleep']}h · restingHR {payload['restingHR']} · "
+          f"actividad {payload.get('activity','—')}")
     return payload
 
 
