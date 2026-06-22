@@ -86,7 +86,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .msg.user{background:var(--green-dim);align-self:flex-end;border-bottom-right-radius:4px}
 .msg.ai{background:var(--s2);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border)}
 .msg.typing{color:var(--t2);font-style:italic}
-#chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg)}
+#chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg);position:sticky;bottom:0;z-index:10}
 #chat-input{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:22px;padding:10px 16px;color:var(--text);font-family:var(--font);font-size:14px;resize:none;max-height:120px;min-height:40px}
 #chat-input:focus{outline:none;border-color:var(--green-dim)}
 #chat-send{width:40px;height:40px;border-radius:50%;background:var(--green);border:none;color:#000;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700}
@@ -163,8 +163,8 @@ select.form-ctrl option{background:var(--s2)}
 /* Divider */
 .divider{height:1px;background:var(--border);margin:12px 0}
 /* Scrollable inner for coach */
-#coach-inner{display:flex;flex-direction:column;height:calc(100vh - var(--tab-h) - var(--safe-b) - 60px);overflow:hidden}
-#chat-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#coach-inner{display:flex;flex-direction:column;min-height:100%}
+#chat-scroll{flex:1;overflow-y:visible}
 /* Phase banner */
 .phase-banner{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 /* Race item */
@@ -281,6 +281,15 @@ select.form-ctrl option{background:var(--s2)}
   </div>
 </div>
 
+<!-- AI file upload overlay -->
+<input type="file" id="ai-file-input" accept="image/*" style="display:none" onchange="processAIFile(event)">
+<div id="ai-upload-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:32px;text-align:center">
+  <div style="width:44px;height:44px;border:3px solid var(--green);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></div>
+  <div style="font-size:14px;color:var(--text)" id="ai-upload-status">Analizando imagen...</div>
+  <div style="font-size:12px;color:var(--t2)">Esto puede tardar 10-20 segundos</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
 <!-- Bottom nav -->
 <nav id="nav">
   <button class="nav-btn active" id="nav-hoy" onclick="switchTab('hoy')">
@@ -370,6 +379,13 @@ select.form-ctrl option{background:var(--s2)}
 
 <!-- PLAN TAB -->
 <section class="tab" id="tab-plan">
+  <div class="card" id="tomorrow-card" style="border-color:var(--border2);margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="label">Manana</div>
+      <div style="font-size:11px;color:var(--t2)" id="tomorrow-date"></div>
+    </div>
+    <div id="tomorrow-session"></div>
+  </div>
   <div style="margin-bottom:14px">
     <div id="phase-banner" class="phase-banner"></div>
     <div id="race-countdown" style="font-size:12px;color:var(--t2);margin-top:6px"></div>
@@ -436,13 +452,24 @@ select.form-ctrl option{background:var(--s2)}
   <div class="card" style="padding:0 16px">
     <div id="collap-foods"></div>
   </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="label">Lo que no como</div>
+      <button onclick="saveFoodRestrict()" class="btn btn-secondary btn-sm">Guardar</button>
+    </div>
+    <textarea id="food-restrict-input" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:none;min-height:80px;font-family:var(--font)" placeholder="Ej: No como cerdo, mariscos, lacteos..."></textarea>
+    <div style="font-size:11px;color:var(--t3);margin-top:6px">El coach evitara sugerir estos alimentos.</div>
+  </div>
 </section>
 
 <!-- SALUD TAB -->
 <section class="tab" id="tab-salud">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
     <div style="font-size:17px;font-weight:700;letter-spacing:-.01em">Composicion corporal</div>
-    <button class="btn btn-secondary btn-sm" onclick="openIbModal()">+ Medicion</button>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-secondary btn-sm" onclick="uploadAIFile('inbody')">Subir InBody</button>
+      <button class="btn btn-secondary btn-sm" onclick="openIbModal()">+ Manual</button>
+    </div>
   </div>
 
   <!-- Current metrics -->
@@ -466,6 +493,9 @@ select.form-ctrl option{background:var(--s2)}
   <!-- Lab results -->
   <div class="card" style="padding:0 16px;margin-bottom:12px">
     <div id="collap-labs"></div>
+    <div style="padding:10px 0 4px">
+      <button class="btn btn-secondary btn-sm" style="width:100%" onclick="uploadAIFile('labs')">Subir foto de examenes de laboratorio</button>
+    </div>
   </div>
 
   <!-- Races link -->
@@ -887,6 +917,23 @@ function renderPlan(){
     <div style="font-size:12px;color:var(--t2)">${esc(phase.desc)}</div>
   `;
 
+  // Tomorrow card
+  const tmrDate=new Date(); tmrDate.setDate(tmrDate.getDate()+1);
+  const tmrDow=tmrDate.getDay();
+  const tmrSess=getSession(gData||{},tmrDow);
+  const sc2={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
+  const tmrHasRide=tmrSess.dot!=='rest'&&tmrSess.duration>0;
+  q('#tomorrow-date').textContent=FULL_DAYS[tmrDow]+' '+tmrDate.getDate();
+  q('#tomorrow-session').innerHTML=`
+    <div class="session-type">
+      <div class="session-dot" style="background:${sc2[tmrSess.dot]||'var(--t3)'}"></div>
+      <div style="font-size:14px;font-weight:700">${esc(tmrSess.title)}</div>
+      ${tmrSess.duration?`<span style="font-size:11px;color:var(--t2);margin-left:auto">${tmrSess.duration} min</span>`:''}
+    </div>
+    <div style="font-size:12px;color:var(--t2);margin-top:2px">${esc(tmrSess.desc)}</div>
+    ${tmrHasRide?`<div style="font-size:11px;color:var(--t3);margin-top:5px">${esc(tmrSess.device||'KICKR o exterior')}</div>`:''}
+  `;
+
   // Next A race countdown
   const races=getRaces().filter(r=>r.priority==='A').sort((a,b)=>a.date.localeCompare(b.date));
   const nextA=races.find(r=>daysUntil(r.date)>0);
@@ -915,26 +962,46 @@ function renderPlan(){
   const strengthHTML=`
     <div style="font-size:13px;color:var(--t2);margin-bottom:8px">2-3 sesiones/semana, post-ride o en dia de descanso activo</div>
     ${[
-      ['Sentadilla goblet','3x12 · Movilidad cadera + cuad','https://youtube.com/shorts/squat'],
-      ['Hip thrust','3x15 · Gluteos y estabilidad pelvis','https://youtube.com'],
-      ['Peso muerto rumano','3x10 · Isquios + cadena posterior','https://youtube.com'],
-      ['Prensa unilateral','3x12 c/lado · Fuerza pedaleo','https://youtube.com'],
-      ['Plancha lateral','3x45s c/lado · Core lateral','https://youtube.com'],
-      ['Superman','3x15 · Erector + gluteos','https://youtube.com'],
-      ['Pallof press','3x12 · Anti-rotacion core','https://youtube.com'],
-      ['Nordic curl','3x8 · Prevencion de isquios','https://youtube.com']
+      ['Sentadilla goblet','3x12 · Movilidad cadera + cuad','https://www.youtube.com/results?search_query=goblet+squat+ciclismo'],
+      ['Hip thrust','3x15 · Gluteos y estabilidad pelvis','https://www.youtube.com/results?search_query=hip+thrust+gluteos+ciclista'],
+      ['Peso muerto rumano','3x10 · Isquios + cadena posterior','https://www.youtube.com/results?search_query=peso+muerto+rumano+isquiotibiales'],
+      ['Prensa unilateral','3x12 c/lado · Fuerza pedaleo','https://www.youtube.com/results?search_query=leg+press+unilateral+ciclismo'],
+      ['Plancha lateral','3x45s c/lado · Core lateral','https://www.youtube.com/results?search_query=plancha+lateral+core+ciclismo'],
+      ['Superman','3x15 · Erector + gluteos','https://www.youtube.com/results?search_query=superman+ejercicio+lumbar'],
+      ['Pallof press','3x12 · Anti-rotacion core','https://www.youtube.com/results?search_query=pallof+press+antirotacion'],
+      ['Nordic curl','3x8 · Prevencion de isquios','https://www.youtube.com/results?search_query=nordic+curl+isquiotibiales']
     ].map(([n,d,url])=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1"><div style="font-size:13px;font-weight:600">${n}</div><div style="font-size:11px;color:var(--t2)">${d}</div></div>
-      <a href="${url}" target="_blank" style="color:var(--green);font-size:12px;text-decoration:none">Ver</a>
+      <a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:12px;text-decoration:none">Ver video</a>
     </div>`).join('')}
   `;
   const warmupHTML=`
     <div style="font-size:12px;color:var(--t2);margin-bottom:8px">6-8 minutos antes de cada ride</div>
-    ${['Circulos de cadera x10 c/lado','Sentadilla profunda x10','Estocada dinamica x8 c/lado','Puente de gluteos x15','Rotacion toracica x8 c/lado','Cadenas de brazos x10'].map(e=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">${e}</div>`).join('')}
+    ${[
+      ['Circulos de cadera x10 c/lado','https://www.youtube.com/results?search_query=hip+circles+movilidad+cadera'],
+      ['Sentadilla profunda x10','https://www.youtube.com/results?search_query=sentadilla+profunda+movilidad'],
+      ['Estocada dinamica x8 c/lado','https://www.youtube.com/results?search_query=estocada+dinamica+calentamiento'],
+      ['Puente de gluteos x15','https://www.youtube.com/results?search_query=puente+gluteos+calentamiento'],
+      ['Rotacion toracica x8 c/lado','https://www.youtube.com/results?search_query=rotacion+toracica+movilidad'],
+      ['Cadenas de brazos x10','https://www.youtube.com/results?search_query=movilidad+hombros+circulos+brazos']
+    ].map(([e,url])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${e}</span><a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;flex-shrink:0;margin-left:8px">Ver</a>
+    </div>`).join('')}
   `;
   const stretchHTML=`
     <div style="font-size:12px;color:var(--t2);margin-bottom:8px">15-20 minutos post-ride. Cada posicion 45-60s</div>
-    ${['Piriforme en silla (figura 4)','Flexor de cadera en estocada','Cuadriceps de pie','Isquiotibiales sentado','Rotacion de columna','Pecho y hombros en pared','Cuello lateral suave','Lumbar en suelo (rodillas al pecho)'].map(e=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">${e}</div>`).join('')}
+    ${[
+      ['Piriforme en silla (figura 4)','https://www.youtube.com/results?search_query=estiramiento+piriforme+figura+4'],
+      ['Flexor de cadera en estocada','https://www.youtube.com/results?search_query=estiramiento+flexor+cadera+estocada'],
+      ['Cuadriceps de pie','https://www.youtube.com/results?search_query=estiramiento+cuadriceps+de+pie'],
+      ['Isquiotibiales sentado','https://www.youtube.com/results?search_query=estiramiento+isquiotibiales+sentado'],
+      ['Rotacion de columna','https://www.youtube.com/results?search_query=rotacion+columna+estiramiento'],
+      ['Pecho y hombros en pared','https://www.youtube.com/results?search_query=estiramiento+pecho+hombros+pared'],
+      ['Cuello lateral suave','https://www.youtube.com/results?search_query=estiramiento+cuello+lateral'],
+      ['Lumbar en suelo (rodillas al pecho)','https://www.youtube.com/results?search_query=estiramiento+lumbar+rodillas+pecho']
+    ].map(([e,url])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${e}</span><a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;flex-shrink:0;margin-left:8px">Ver</a>
+    </div>`).join('')}
   `;
 
   q('#collap-plan').innerHTML=[
@@ -944,6 +1011,27 @@ function renderPlan(){
   ].join('');
 }
 
+function toggleMode(m){
+  ['exterior','kickr'].forEach(k=>{
+    const d=document.getElementById('mode-'+k);
+    const b=document.getElementById('btn-'+k);
+    if(d) d.style.display=k===m?'block':'none';
+    if(b){b.style.background=k===m?'var(--green-dim)':'var(--s2)';b.style.borderColor=k===m?'var(--green)':'var(--border)';b.style.color=k===m?'var(--text)':'var(--t2)';}
+  });
+}
+function getOutdoorDesc(sess){
+  const ph=getCurrentPhase().name;
+  if(sess.dot==='race') return 'Grupeta Vegabikes 6:00am. Rueda con el grupo, disfrutalo. No te quemes en las subidas.';
+  if(sess.dot==='quality') return 'Salida estructurada. Calentamiento 15min Z2, ejecuta los intervalos en tramo plano. Cadencia 88-95rpm. Edge 1040 en modo intervalo.';
+  if(ph==='Recuperacion') return 'Z1-Z2 ruta plana. Cartago-Dulce Nombre o similar. FC max 135bpm. Sin zonas grises. 45-75min.';
+  return 'Z2 exterior. Ruta limpia de trafico. FC 120-139bpm. Cadencia 85-90rpm. 1-2 bidones + gel si supera 90min.';
+}
+function getKickrDesc(sess){
+  const ph=getCurrentPhase().name;
+  if(sess.dot==='quality') return 'ERG 15min calentamiento 100-160W + 4x8min a 175-190W (Z3) con 4min a 100W + 15min vuelta a calma. Cadencia 90-95rpm. Ventilador obligatorio.';
+  if(ph==='Recuperacion') return 'ERG suave 45min a 120-145W. Cadencia libre >85rpm. Netflix activado. El objetivo es mover piernas, no entrenar.';
+  return 'ERG 60min: 10min calentamiento, bloque Z2 (140-165W), 10min enfriamiento. Cadencia 85-90rpm. Ajusta segun sensaciones.';
+}
 function openDaySheet(weekIdx){
   const days=getWeekDays();
   const d=days[weekIdx];
@@ -976,8 +1064,15 @@ function openDaySheet(weekIdx){
 
     ${sess.duration>0?`
     <div class="label" style="margin-bottom:8px">Sesion</div>
-    <div class="card-sm" style="margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(sess.desc)}</div>
-    `:'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Dia de descanso. Aprovecha para recuperar.</div>'}
+    ${sess.dot!=='rest'&&sess.duration>30?`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <button id="btn-exterior" onclick="toggleMode('exterior')" style="background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:10px;color:var(--text);cursor:pointer;font-size:12px;font-weight:700">Exterior<br><span style="font-weight:400;color:var(--t2);font-size:10px">Edge 1040</span></button>
+      <button id="btn-kickr" onclick="toggleMode('kickr')" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--t2);cursor:pointer;font-size:12px;font-weight:700">KICKR Indoor<br><span style="font-weight:400;font-size:10px">KICKR CORE</span></button>
+    </div>
+    <div id="mode-exterior" class="card-sm" style="margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(getOutdoorDesc(sess))}</div>
+    <div id="mode-kickr" class="card-sm" style="margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--t2);display:none">${esc(getKickrDesc(sess))}</div>
+    `:<div class="card-sm" style="margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(sess.desc)}</div>}
+    `:'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Dia de descanso. Aprovecha para recuperar y dorme bien.</div>'}
 
     <div class="label" style="margin-bottom:8px">Nutricion</div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px">
@@ -1028,6 +1123,13 @@ const DAY_TYPE_LABELS={
   largo:     ['Largo / Vegabikes','badge-red']
 };
 
+function getFoodRestrict(){return localStorage.getItem('food_restrict')||'';}
+function saveFoodRestrict(){
+  const v=q('#food-restrict-input')?.value||'';
+  localStorage.setItem('food_restrict',v);
+  const btn=document.querySelector('[onclick="saveFoodRestrict()"]');
+  if(btn){btn.textContent='Guardado!';setTimeout(()=>btn.textContent='Guardar',1500);}
+}
 function renderComida(){
   const ix=getIx();
   const t=getDayType();
@@ -1079,6 +1181,7 @@ function renderComida(){
       <div><b style="color:var(--text)">Snacks:</b> Yogurt, fruta, nueces, barra proteica</div>
     </div>`;
   q('#collap-foods').innerHTML=collap('food-examples','Ejemplos de comidas CR',examplesHTML,false);
+  const ri=q('#food-restrict-input');if(ri) ri.value=getFoodRestrict();
 }
 
 function openIxEditor(){
@@ -1136,7 +1239,13 @@ function renderSalud(){
       </div>
     </div>`).join('')}
   `;
-  q('#collap-labs').innerHTML=collap('labs','Examenes de laboratorio Dic 2025',labsHTML,false);
+  const extractedLabs=localStorage.getItem('labs_extracted');
+  const labsDate=localStorage.getItem('labs_date')||'Dic 2025';
+  const labsTitle='Examenes de laboratorio'+(extractedLabs?' ('+labsDate+')':' Dic 2025');
+  const labsBody=extractedLabs
+    ?`<pre style="font-size:12px;color:var(--t2);white-space:pre-wrap;line-height:1.6">${extractedLabs}</pre>`
+    :labsHTML;
+  q('#collap-labs').innerHTML=collap('labs',labsTitle,labsBody,false);
 
   renderRaces();
 }
@@ -1345,6 +1454,10 @@ DATOS GARMIN ACTUALES:
 ZONAS FC (LTHR 178): Z1<120 | Z2:120-139 | Z3:140-161 | Z4:162-178 | Z5>178
 ZONAS POTENCIA (FTP 236W): Z1<118W | Z2:118-165W | Z3:166-189W | Z4:190-212W | Z5:213-259W | Z6>259W
 
+${getFoodRestrict()?'\nRESTRICCIONES ALIMENTARIAS: '+getFoodRestrict():''}
+
+${getFoodRestrict()?'\nRESTRICCIONES ALIMENTARIAS: '+getFoodRestrict():''}${localStorage.getItem('labs_extracted')?'\nEXAMENES LAB: '+localStorage.getItem('labs_extracted').slice(0,600):''}
+
 Responde siempre en espanol costarricense. Se directo, practico y basate en los datos reales. Maximo 3-4 parrafos por respuesta a menos que te pidan mas detalle.`;
 
   const initU={role:'user',content:'[SISTEMA COACH] '+sys};
@@ -1362,6 +1475,17 @@ function addMsg(role,text){
   return div;
 }
 
+function extractReply(r){
+  if(!r) return 'Sin respuesta';
+  if(typeof r==='string') return r;
+  const mc=r?.message?.content;
+  if(typeof mc==='string') return mc;
+  if(Array.isArray(mc)) return mc.filter(b=>b.type==='text').map(b=>b.text||'').join('\n')||'Sin respuesta';
+  const c=r?.content;
+  if(typeof c==='string') return c;
+  if(Array.isArray(c)) return c.filter(b=>b.type==='text').map(b=>b.text||'').join('\n')||'Sin respuesta';
+  return 'Sin respuesta';
+}
 async function sendMsg(){
   const input=q('#chat-input');
   const text=input.value.trim();
@@ -1376,7 +1500,7 @@ async function sendMsg(){
   try{
     const messages=buildCoachMessages();
     const resp=await puter.ai.chat(messages,{model:'claude-sonnet-4-6'});
-    const reply=resp?.message?.content||resp?.toString()||'Sin respuesta';
+    const reply=extractReply(resp);
     typing.classList.remove('typing');
     typing.textContent=reply;
     chatHistory.push({role:'assistant',content:reply});
@@ -1415,6 +1539,47 @@ function renderAll(){
   renderPlan();
   renderComida();
   renderSalud();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════
+let _aiMode='';
+function uploadAIFile(mode){
+  if(typeof puter==='undefined'){alert('Conecta el Coach IA primero (pestana Coach).');return;}
+  _aiMode=mode;
+  q('#ai-file-input').click();
+}
+async function processAIFile(evt){
+  const file=evt.target.files?.[0]; if(!file) return;
+  evt.target.value='';
+  const ov=q('#ai-upload-overlay'); const st=q('#ai-upload-status');
+  ov.style.display='flex';
+  try{
+    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const mime=file.type||'image/jpeg';
+    if(_aiMode==='inbody'){
+      st.textContent='Extrayendo datos InBody...';
+      const prompt='Extrae estos datos de este reporte InBody y responde SOLO con JSON sin backticks: {"date":"YYYY-MM-DD","weight":X.X,"muscle":X.X,"fat":X.X,"tmb":X}. Usa null si no podes leer un valor.';
+      const resp=await puter.ai.chat([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:prompt}]}],{model:'claude-sonnet-4-6'});
+      const txt=extractReply(resp);
+      let parsed; try{const m=txt.match(/\{[^}]+\}/);parsed=JSON.parse(m?m[0]:txt);}catch(_){throw new Error('No se pudo leer el reporte. Intenta con mejor iluminacion.');}
+      ov.style.display='none';
+      q('#ib-date').value=parsed.date||new Date().toISOString().split('T')[0];
+      q('#ib-weight').value=parsed.weight||'';q('#ib-muscle').value=parsed.muscle||'';q('#ib-fat').value=parsed.fat||'';q('#ib-tmb').value=parsed.tmb||'';
+      q('#ib-modal').classList.add('open');
+    } else {
+      st.textContent='Extrayendo resultados de laboratorio...';
+      const prompt='Extrae todos los examenes de laboratorio de esta imagen. Formato: EXAMEN: valor unidad (rango referencia). Un examen por linea. Solo datos, sin introduccion ni conclusion.';
+      const resp=await puter.ai.chat([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:prompt}]}],{model:'claude-sonnet-4-6'});
+      const txt=extractReply(resp);
+      localStorage.setItem('labs_extracted',txt);
+      localStorage.setItem('labs_date',new Date().toISOString().split('T')[0]);
+      ov.style.display='none';
+      renderSalud();
+      alert('Examenes guardados. El coach ahora los tiene disponibles.');
+    }
+  }catch(err){ov.style.display='none';alert('Error: '+err.message);}
 }
 
 // ═══════════════════════════════════════════════════════════════
