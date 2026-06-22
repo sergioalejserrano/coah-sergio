@@ -49,8 +49,7 @@ def build_payload(api):
 
     # ── Body Battery 7 días ────────────────────────────────────────────────
     # FIX 2: usar el último valor no-cero de bb7 como BB actual
-    week_dates = [date_str(i) for i in range(6, -1, -1)]   # lun→hoy
-    bb_data    = safe(api.get_body_battery, week_dates, default=[])
+    bb_data = safe(api.get_body_battery, date_str(6), date_str(0), default=[])
 
     bb7        = []
     bb_current = 0
@@ -79,20 +78,24 @@ def build_payload(api):
                 bb_current = v
                 break
 
-    # ── Resting HR — endpoint dedicado ────────────────────────────────────
-    # FIX 3: stats no tiene restingHeartRate; usar get_rhr_day()
+    # ── Resting HR ────────────────────────────────────────────────────────
+    # get_stats() no tiene la clave; probar get_heart_rates y get_rhr_day
     resting_hr = 0
     for d in [today, yesterday]:
-        rhr = safe(api.get_rhr_day, d, default=None)
-        if rhr:
-            resting_hr = rhr.get("restingHeartRate") or rhr.get("value") or 0
+        hr_data = safe(api.get_heart_rates, d, default=None)
+        if hr_data:
+            print(f"  DEBUG heart_rates keys ({d}): {list(hr_data.keys())[:10]}")
+            resting_hr = hr_data.get("restingHeartRate") or 0
             if resting_hr:
                 break
-    # Fallback: get_heart_rates
     if not resting_hr:
-        hr_data = safe(api.get_heart_rates, today, default=None)
-        if hr_data:
-            resting_hr = hr_data.get("restingHeartRate") or 0
+        for d in [today, yesterday]:
+            rhr = safe(api.get_rhr_day, d, default=None)
+            if rhr:
+                print(f"  DEBUG rhr_day keys ({d}): {list(rhr.keys()) if isinstance(rhr, dict) else type(rhr).__name__}")
+                resting_hr = (rhr.get("restingHeartRate") or rhr.get("value") or 0) if isinstance(rhr, dict) else 0
+                if resting_hr:
+                    break
 
     print(f"  BB={bb_current} restingHR={resting_hr}")
 
