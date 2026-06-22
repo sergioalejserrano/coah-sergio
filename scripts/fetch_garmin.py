@@ -157,7 +157,7 @@ def build_payload(g):
     bb_raw = safe(lambda: g.get_body_battery(start, iso), "body battery", []) or []
     for day in bb_raw[-7:]:
         vals = day.get("bodyBatteryValuesArray", []) or []
-        peak = max((v[1] for v in vals if isinstance(v, list) and len(v) > 1), default=0)
+        peak = max((v[1] for v in vals if isinstance(v, list) and len(v) > 1 and v[1] is not None), default=0)
         try:
             wd = datetime.date.fromisoformat(day.get("date")).weekday()
             dlabel = DOW_ES[(wd + 1) % 7]
