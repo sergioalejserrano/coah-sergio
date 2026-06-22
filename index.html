@@ -1783,12 +1783,22 @@ document.getElementById("settingsBtn").addEventListener("click",openSettings);
 document.getElementById("refreshBtn").addEventListener("click",doRefresh);
 
 (async function(){
-  await loadData();
-  initHeader();
-  renderHoy(); renderQuick();
-  registerSW();
-  if(DATA.source!=="live" && !lsGet("coach_pass")){ /* primera vez: mostrará demo hasta poner la frase */ }
-  if(window.puter){ try{ if(await puter.auth.isSignedIn()) setCoachStatus("Coach Claude · conectado"); }catch(e){} }
+  try{
+    await loadData();
+    initHeader();
+    renderHoy(); renderQuick();
+    registerSW();
+    if(DATA.source!=="live" && !lsGet("coach_pass")){ /* primera vez: demo hasta poner la frase */ }
+    if(window.puter){ try{ if(await puter.auth.isSignedIn()) setCoachStatus("Coach Claude · conectado"); }catch(e){} }
+  }catch(err){
+    // Muestra el error en pantalla en vez de pantalla en blanco
+    const el=document.getElementById("tab-hoy");
+    if(el) el.innerHTML=`<div style="padding:20px;background:#FDEBEC;border-radius:12px;margin:16px 0;font-size:13px;color:#9F2F2D">
+      <b>Error al cargar la app</b><br><br>${esc(String(err.message||err))}<br><br>
+      <small>Intentá limpiar el cache del navegador (menú ⋮ → Configuración → Almacenamiento) y recargá.</small>
+    </div>`;
+    console.error("Coach init error:", err);
+  }
 })();
 </script>
 </body>
