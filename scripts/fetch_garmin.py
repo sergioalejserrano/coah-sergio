@@ -105,85 +105,172 @@ def safe(fn, label, default=None):
 
 
 # --------------------------------------------------------------------------
+def dbg(label, obj):
+    """Imprime las claves reales de una respuesta para diagnosticar cambios en la API."""
+    if isinstance(obj, dict):
+        keys = list(obj.keys())[:20]
+        log(f"  DEBUG {label} keys: {keys}")
+        # Mostrar valores de las primeras claves que no sean None
+        for k in keys[:8]:
+            v = obj.get(k)
+            if v is not None and not isinstance(v, (dict, list)):
+                log(f"    {k}: {v}")
+    elif isinstance(obj, list) and obj:
+        log(f"  DEBUG {label} list[0] keys: {list(obj[0].keys())[:15] if isinstance(obj[0], dict) else type(obj[0])}")
+    else:
+        log(f"  DEBUG {label}: {type(obj)} = {str(obj)[:120]}")
+
+
+def _int(v, default=0):
+    """Convierte a int de forma segura, maneja None y strings."""
+    try:
+        return int(v) if v is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _float(v, default=0.0):
+    try:
+        return float(v) if v is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
 def build_payload(g):
     today = datetime.date.today()
     iso = today.isoformat()
 
     # ----- Training Readiness -----
-    rd_raw = safe(lambda: g.get_training_readiness(iso), "readiness", []) or []
-    rd = rd_raw[0] if isinstance(rd_raw, list) and rd_raw else (rd_raw or {})
-    fb = rd.get("feedbackShort", "")
+    rd_raw = safe(lambda: g.get_training_readiness(iso), "readiness", None)
+    log(f"  readiness raw type: {type(rd_raw)}")
+    if rd_raw is not None:
+        dbg("readiness_raw", rd_raw)
+
+    rd = {}
+    if isinstance(rd_raw, list) and rd_raw:
+        rd = rd_raw[0] if isinstance(rd_raw[0], dict) else {}
+    elif isinstance(rd_raw, dict):
+        rd = rd_raw
+
+    # Claves conocidas y alternativas para readiness
+    readiness_val = _int(first(rd, "score", "trainingReadinessScore", "value"))
+    recovery_min  = _int(first(rd, "recoveryTime", "recoveryTimeInMinutes", "recoveryMinutes"))
+    hrv_weekly    = _float(first(rd, "hrvWeeklyAverage", "avgHrv", "weeklyAvgHrv"))
+    sleep_score   = _int(first(rd, "sleepScore", "sleepQualityScore"))
+    fb            = str(rd.get("feedbackShort", rd.get("feedback", rd.get("level", ""))))
+
     today_blk = {
-        "readiness": rd.get("score", 0),
-        "readinessLevel": rd.get("level", ""),
-        "readinessMsg": READINESS_MSG.get(fb, READINESS_MSG.get(rd.get("level", ""), "—")),
-        "recoveryMin": rd.get("recoveryTime", 0),
-        "hrvWeekly": rd.get("hrvWeeklyAverage", 0),
-        "sleepScore": rd.get("sleepScore", 0),
+        "readiness": readiness_val,
+        "readinessLevel": str(rd.get("level", rd.get("trainingReadinessLevel", ""))),
+        "readinessMsg": READINESS_MSG.get(fb, "—"),
+        "recoveryMin": recovery_min,
+        "hrvWeekly": hrv_weekly,
+        "sleepScore": sleep_score,
         "factors": {
-            "sueno": rd.get("sleepScoreFactorPercent", 0),
-            "recuperacion": rd.get("recoveryTimeFactorPercent", 0),
-            "carga": rd.get("acwrFactorPercent", 0),
-            "estres": rd.get("stressHistoryFactorPercent", 0),
-            "hrv": rd.get("hrvFactorPercent", 0),
+            "sueno":        _int(first(rd, "sleepScoreFactorPercent", "sleepFactor")),
+            "recuperacion": _int(first(rd, "recoveryTimeFactorPercent", "recoveryFactor")),
+            "carga":        _int(first(rd, "acwrFactorPercent", "loadFactor")),
+            "estres":       _int(first(rd, "stressHistoryFactorPercent", "stressFactor")),
+            "hrv":          _int(first(rd, "hrvFactorPercent", "hrvFactor")),
         },
     }
+    log(f"  readiness={readiness_val} recovery={recovery_min}min hrv={hrv_weekly}ms sleep={sleep_score}")
 
-    # ----- Resumen diario (BB actual, FC reposo) -----
-    stats = safe(lambda: g.get_stats(iso), "resumen diario", {}) or {}
-    today_blk["bodyBattery"] = first(stats, "bodyBatteryMostRecentValue",
-                                     "bodyBatteryAtWakeTime", default=0)
-    today_blk["restingHr"] = first(stats, "restingHeartRate", default=0)
+    # ----- Resumen diario (BB actual, FC reposo, estrés) -----
+    stats = safe(lambda: g.get_stats(iso), "stats", None)
+    if stats is None:
+        # Fallback: get_user_summary
+        stats = safe(lambda: g.get_user_summary(iso), "user_summary", {}) or {}
+    if stats:
+        dbg("stats", stats)
+
+    today_blk["bodyBattery"] = _int(first(stats or {},
+        "bodyBatteryMostRecentValue", "bodyBatteryAtWakeTime",
+        "currentBodyBattery", "bodyBattery"))
+    today_blk["restingHr"] = _int(first(stats or {},
+        "restingHeartRate", "currentRestingHeartRate", "minAvgHeartRate"))
+    log(f"  BB={today_blk['bodyBattery']} restingHR={today_blk['restingHr']}")
 
     # ----- Sueño -----
-    sl_raw = safe(lambda: g.get_sleep_data(iso), "sueño", {}) or {}
-    dto = sl_raw.get("dailySleepDTO", sl_raw) if isinstance(sl_raw, dict) else {}
-    secs = lambda k: int(dto.get(k, 0) or 0)
+    sl_raw = safe(lambda: g.get_sleep_data(iso), "sueño", None)
+    dto = {}
+    if isinstance(sl_raw, dict):
+        dto = sl_raw.get("dailySleepDTO", sl_raw)
+        if not dto.get("sleepTimeSeconds"):
+            dbg("sleep_raw", sl_raw)
+            dbg("sleep_dto", dto)
+    elif isinstance(sl_raw, list) and sl_raw:
+        dto = sl_raw[0] if isinstance(sl_raw[0], dict) else {}
+
+    def secs(k):
+        return _int(dto.get(k, 0))
+
     sleep_blk = {
-        "deepMin": round(secs("deepSleepSeconds") / 60),
+        "deepMin":  round(secs("deepSleepSeconds") / 60),
         "lightMin": round(secs("lightSleepSeconds") / 60),
-        "remMin": round(secs("remSleepSeconds") / 60),
-        "awake": round(secs("awakeSleepSeconds") / 60),
+        "remMin":   round(secs("remSleepSeconds") / 60),
+        "awake":    round(secs("awakeSleepSeconds") / 60),
     }
     total_sleep_s = secs("sleepTimeSeconds")
     today_blk["sleepHrs"] = round(total_sleep_s / 3600, 1) if total_sleep_s else 0
+
     if not today_blk["sleepScore"]:
-        sc = dto.get("sleepScores", {})
-        today_blk["sleepScore"] = (sc.get("overall", {}) or {}).get("value", 0) if isinstance(sc, dict) else 0
+        sc = dto.get("sleepScores", dto.get("sleepScore", {}))
+        if isinstance(sc, dict):
+            today_blk["sleepScore"] = _int(
+                (sc.get("overall") or {}).get("value") or sc.get("value") or sc.get("totalScore")
+            )
+        elif isinstance(sc, (int, float)):
+            today_blk["sleepScore"] = _int(sc)
+    log(f"  sleep={today_blk['sleepHrs']}h score={today_blk['sleepScore']}")
 
     # ----- Body Battery 7 días (pico diario) -----
     bb7 = []
     start = (today - datetime.timedelta(days=6)).isoformat()
     bb_raw = safe(lambda: g.get_body_battery(start, iso), "body battery", []) or []
+    if bb_raw:
+        dbg("bb_day[0]", bb_raw[0] if isinstance(bb_raw[0], dict) else {"item": bb_raw[0]})
     for day in bb_raw[-7:]:
-        vals = day.get("bodyBatteryValuesArray", []) or []
-        peak = max((v[1] for v in vals if isinstance(v, list) and len(v) > 1 and v[1] is not None), default=0)
+        vals = day.get("bodyBatteryValuesArray", day.get("bodyBatteryValues", [])) or []
+        # vals puede ser [[timestamp_ms, value], ...] o [{"value":x, "date":...}, ...]
+        peak = 0
+        for v in vals:
+            if isinstance(v, list) and len(v) > 1 and v[1] is not None:
+                peak = max(peak, _int(v[1]))
+            elif isinstance(v, dict):
+                val = _int(v.get("value", v.get("bodyBattery", 0)))
+                peak = max(peak, val)
         try:
-            wd = datetime.date.fromisoformat(day.get("date")).weekday()
+            wd = datetime.date.fromisoformat(day.get("date", "")).weekday()
             dlabel = DOW_ES[(wd + 1) % 7]
         except Exception:
             dlabel = ""
         bb7.append({"d": dlabel, "v": peak})
+    log(f"  bb7 peaks: {[x['v'] for x in bb7]}")
 
     # ----- Última actividad -----
     acts = safe(lambda: g.get_activities(0, 1), "actividades", []) or []
     last = {}
     if acts:
         a = acts[0]
-        dist_m = first(a, "distance", default=0) or 0
-        dur_s = first(a, "duration", "elapsedDuration", default=0) or 0
+        if isinstance(a, dict):
+            dbg("activity[0]", a)
+        dist_m = _float(first(a, "distance", "totalDistance", default=0))
+        dur_s  = _float(first(a, "duration", "elapsedDuration", "movingDuration", default=0))
         last = {
-            "name": first(a, "activityName", default="Actividad"),
-            "date": (first(a, "startTimeLocal", default="") or "")[:10],
-            "km": round(dist_m / 1000, 1),
-            "min": round(dur_s / 60),
-            "hrAvg": round(first(a, "averageHR", default=0) or 0),
-            "hrMax": round(first(a, "maxHR", default=0) or 0),
-            "elevM": round(first(a, "elevationGain", default=0) or 0),
-            "watts": round(first(a, "avgPower", "averagePower", default=0) or 0),
-            "cad": round(first(a, "averageBikingCadenceInRevPerMinute",
-                               "averageRunningCadenceInStepsPerMinute", default=0) or 0),
+            "name":  str(first(a, "activityName", "name", default="Actividad")),
+            "date":  str(first(a, "startTimeLocal", "startTime", default="") or "")[:10],
+            "km":    round(dist_m / 1000, 1),
+            "min":   round(dur_s / 60),
+            "hrAvg": _int(first(a, "averageHR", "avgHeartRate", "averageHeartRate")),
+            "hrMax": _int(first(a, "maxHR", "maxHeartRate")),
+            "elevM": _int(first(a, "elevationGain", "totalElevationGain")),
+            "watts": _int(first(a, "avgPower", "averagePower", "normalizedPower")),
+            "cad":   _int(first(a, "averageBikingCadenceInRevPerMinute",
+                                "averageRunningCadenceInStepsPerMinute",
+                                "avgCadence", "averageCadence")),
         }
+        log(f"  actividad: {last['name']} {last['km']}km FC{last['hrAvg']} {last['watts']}W")
 
     # ----- Calendario (iCal privado, opcional) -----
     calendar = fetch_calendar(get_env("CALENDAR_ICAL_URL"))
