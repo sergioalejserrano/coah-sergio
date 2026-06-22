@@ -160,36 +160,25 @@ def build_payload(api):
 
     print(f"  sleep={sleep_hours}h score={sleep_score}")
 
-    # ── Training Load Balance (foco de carga) ───────────────────────────────
+    # -- Training Load Balance (foco de carga) ---
+    # get_training_status devuelve mostRecentTrainingLoadBalance con la data
     aerobic_high = aerobic_low = anaerobic = 0
     ah_min, ah_max = 700, 1100
     al_min, al_max = 600, 900
     an_min, an_max = 200, 500
 
-    # Intento 1: get_training_load_details(startdate, enddate) — si existe
-    load_fn = getattr(api, "get_training_load_details", None)
-    load_data = safe(load_fn, date_str(28), today, default=None) if load_fn else None
-
-    # Intento 2: get_training_load(startdate, enddate)
-    if not load_data:
-        load_fn2 = getattr(api, "get_training_load", None)
-        load_data = safe(load_fn2, date_str(28), today, default=None) if load_fn2 else None
-
-    # Intento 3: get_training_status(date) — extrae lo que trae
     ts_data = safe(api.get_training_status, yesterday, default=None)
-    if ts_data:
-        print(f"  DEBUG training_status keys: {list(ts_data.keys()) if isinstance(ts_data, dict) else type(ts_data).__name__}")
-
-    if load_data:
-        print(f"  DEBUG load_data keys: {list(load_data.keys()) if isinstance(load_data, dict) else type(load_data).__name__}")
-        if isinstance(load_data, dict):
+    if isinstance(ts_data, dict):
+        print(f"  DEBUG training_status keys: {list(ts_data.keys())}")
+        load_data = ts_data.get("mostRecentTrainingLoadBalance") or {}
+        if load_data:
+            print(f"  DEBUG load_balance keys: {list(load_data.keys())}")
             aerobic_high = (load_data.get("aerobicHighLoad")
                             or load_data.get("aerobicHigh") or 0)
             aerobic_low  = (load_data.get("aerobicLowLoad")
                             or load_data.get("aerobicLow") or 0)
             anaerobic    = (load_data.get("anaerobicLoad")
                             or load_data.get("anaerobic") or 0)
-            # Rangos óptimos si los trae la API
             tgt_ah = load_data.get("aerobicHighLoadTarget") or {}
             tgt_al = load_data.get("aerobicLowLoadTarget") or {}
             tgt_an = load_data.get("anaerobicLoadTarget") or {}
@@ -199,8 +188,8 @@ def build_payload(api):
             al_max = tgt_al.get("maxValue") or tgt_al.get("max") or al_max
             an_min = tgt_an.get("minValue") or tgt_an.get("min") or an_min
             an_max = tgt_an.get("maxValue") or tgt_an.get("max") or an_max
-    else:
-        print("  warn: load_data no disponible — foco de carga quedará en 0")
+        else:
+            print("  warn: mostRecentTrainingLoadBalance vacio en training_status")
 
     print(f"  load aerobicHigh={aerobic_high} aerobicLow={aerobic_low} anaerobic={anaerobic}")
 
