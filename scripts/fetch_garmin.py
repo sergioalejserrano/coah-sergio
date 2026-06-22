@@ -71,20 +71,18 @@ def build_payload(api):
         for day in bb_data:
             vals = day.get("bodyBatteryValuesArray") or []
             if vals:
-                # v[1] puede ser None → filtrar antes de max()
-                peak = max(
-                    (v[1] for v in vals if v and len(v) > 1 and v[1] is not None),
-                    default=0
-                )
+                non_none = [v[1] for v in vals if v and len(v) > 1 and v[1] is not None]
+                peak     = max(non_none, default=0)
+                last_val = non_none[-1] if non_none else 0
             else:
-                peak = day.get("charged") or 0
+                peak     = day.get("charged") or 0
+                last_val = 0
             bb7.append(int(peak) if peak else 0)
+            # bb_current = ultimo valor registrado del dia mas reciente con datos
+            if last_val:
+                bb_current = int(last_val)
 
-        print(f"  bb7 peaks: {bb7}")
-        for v in reversed(bb7):
-            if v and v > 0:
-                bb_current = v
-                break
+        print(f"  bb7 peaks: {bb7}  bb_current_lastval: {bb_current}")
 
     # ── Resting HR ─────────────────────────────────────────────────────────
     resting_hr = 0
@@ -170,24 +168,36 @@ def build_payload(api):
     ts_data = safe(api.get_training_status, yesterday, default=None)
     if isinstance(ts_data, dict):
         print(f"  DEBUG training_status keys: {list(ts_data.keys())}")
-        load_data = ts_data.get("mostRecentTrainingLoadBalance") or {}
-        if load_data:
-            print(f"  DEBUG load_balance keys: {list(load_data.keys())}")
-            aerobic_high = (load_data.get("aerobicHighLoad")
-                            or load_data.get("aerobicHigh") or 0)
-            aerobic_low  = (load_data.get("aerobicLowLoad")
-                            or load_data.get("aerobicLow") or 0)
-            anaerobic    = (load_data.get("anaerobicLoad")
-                            or load_data.get("anaerobic") or 0)
-            tgt_ah = load_data.get("aerobicHighLoadTarget") or {}
-            tgt_al = load_data.get("aerobicLowLoadTarget") or {}
-            tgt_an = load_data.get("anaerobicLoadTarget") or {}
-            ah_min = tgt_ah.get("minValue") or tgt_ah.get("min") or ah_min
-            ah_max = tgt_ah.get("maxValue") or tgt_ah.get("max") or ah_max
-            al_min = tgt_al.get("minValue") or tgt_al.get("min") or al_min
-            al_max = tgt_al.get("maxValue") or tgt_al.get("max") or al_max
-            an_min = tgt_an.get("minValue") or tgt_an.get("min") or an_min
-            an_max = tgt_an.get("maxValue") or tgt_an.get("max") or an_max
+        load_balance = ts_data.get("mostRecentTrainingLoadBalance") or {}
+        if load_balance:
+            print(f"  DEBUG load_balance keys: {list(load_balance.keys())}")
+            # La data real esta en metricsTrainingLoadBalanceDTOMap
+            tlb_map = load_balance.get("metricsTrainingLoadBalanceDTOMap") or {}
+            if tlb_map:
+                print(f"  DEBUG tlb_map keys: {list(tlb_map.keys())}")
+                # Intentar extraer en orden: ALL > primera clave > suma
+                inner = (tlb_map.get("ALL") or tlb_map.get("all")
+                         or tlb_map.get("-1") or tlb_map.get("0")
+                         or next(iter(tlb_map.values()), {}))
+                print(f"  DEBUG inner keys: {list(inner.keys()) if isinstance(inner, dict) else inner}")
+                if isinstance(inner, dict):
+                    aerobic_high = (inner.get("aerobicHighLoad")
+                                    or inner.get("aerobicHigh") or 0)
+                    aerobic_low  = (inner.get("aerobicLowLoad")
+                                    or inner.get("aerobicLow") or 0)
+                    anaerobic    = (inner.get("anaerobicLoad")
+                                    or inner.get("anaerobic") or 0)
+                    tgt_ah = inner.get("aerobicHighLoadTarget") or {}
+                    tgt_al = inner.get("aerobicLowLoadTarget") or {}
+                    tgt_an = inner.get("anaerobicLoadTarget") or {}
+                    ah_min = tgt_ah.get("minValue") or tgt_ah.get("min") or ah_min
+                    ah_max = tgt_ah.get("maxValue") or tgt_ah.get("max") or ah_max
+                    al_min = tgt_al.get("minValue") or tgt_al.get("min") or al_min
+                    al_max = tgt_al.get("maxValue") or tgt_al.get("max") or al_max
+                    an_min = tgt_an.get("minValue") or tgt_an.get("min") or an_min
+                    an_max = tgt_an.get("maxValue") or tgt_an.get("max") or an_max
+            else:
+                print("  warn: metricsTrainingLoadBalanceDTOMap vacio")
         else:
             print("  warn: mostRecentTrainingLoadBalance vacio en training_status")
 
