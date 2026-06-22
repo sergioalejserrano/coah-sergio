@@ -268,6 +268,19 @@ select.form-ctrl option{background:var(--s2)}
   </div>
 </div>
 
+
+<!-- Indicator config modal -->
+<div id="ind-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:24px;width:100%;max-width:380px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h2 style="font-size:16px;font-weight:700">Indicadores visibles</h2>
+      <button onclick="closeIndModal()" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer">x</button>
+    </div>
+    <div id="ind-list"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="saveIndConfig()">Guardar</button>
+  </div>
+</div>
+
 <!-- Bottom nav -->
 <nav id="nav">
   <button class="nav-btn active" id="nav-hoy" onclick="switchTab('hoy')">
@@ -313,27 +326,13 @@ select.form-ctrl option{background:var(--s2)}
   </div>
 
   <!-- Stats 2x2 -->
-  <div class="stats-grid">
-    <div class="stat-card" onclick="showTip('Body Battery: nivel de energia disponible segun Garmin. 0-30 critico, 30-60 moderado, 60-100 bueno.')">
-      <div class="stat-val" id="bb-val" style="color:var(--green)">--</div>
-      <div class="stat-unit" style="display:none">/100</div>
-      <div class="stat-lbl">Body Battery</div>
-      <div id="bb-spark" class="spark-bar" style="margin-top:8px"></div>
-    </div>
-    <div class="stat-card" onclick="showTip('Sueno anoche: horas de sueno total con score de calidad Garmin.')">
-      <div class="stat-val" id="sleep-val">--</div>
-      <div class="stat-lbl">Sueno / Score</div>
-      <div style="font-size:11px;color:var(--t2);margin-top:4px" id="sleep-score-val"></div>
-    </div>
-    <div class="stat-card" onclick="showTip('HRV (Heart Rate Variability): variabilidad de la FC nocturna. Tu promedio semanal. Mayor = mejor recuperacion.')">
-      <div class="stat-val" id="hrv-val">--<span class="stat-unit">ms</span></div>
-      <div class="stat-lbl">HRV semanal</div>
-    </div>
-    <div class="stat-card" onclick="showTip('FC en reposo: tu frecuencia cardiaca basal esta manana. Aumenta cuando hay fatiga o enfermedad.')">
-      <div class="stat-val" id="rhr-val">--<span class="stat-unit">bpm</span></div>
-      <div class="stat-lbl">FC Reposo</div>
-    </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="label">Indicadores</div>
+    <button onclick="openIndModal()" style="background:none;border:none;color:var(--t2);font-size:12px;cursor:pointer;padding:2px 0">&#9881; Editar</button>
   </div>
+  <div class="stats-grid" id="stats-grid">
+    <!-- Indicator cards rendered dynamically by buildStatsGrid() -->
+  </div><!-- /stats-grid -->
 
   <!-- Recovery banner -->
   <div id="recovery-card" class="card" style="display:none;background:#1a0f00;border-color:#6b3a00">
@@ -831,22 +830,8 @@ function renderHoy(){
     ${sess.device?`<div style="font-size:11px;color:var(--t3);margin-top:6px;letter-spacing:.03em">${esc(sess.device)}</div>`:''}
   `;
 
-  // BB
-  q('#bb-val').textContent=gData.bb||'--';
-  q('#bb-val').style.color=bbColor(gData.bb||0);
-  q('#bb-spark').innerHTML=renderBBSpark(gData.bb7);
-
-  // Sleep
-  const sleepH=gData.sleep||0;
-  const sh=Math.floor(sleepH), sm=Math.round((sleepH-sh)*60);
-  q('#sleep-val').textContent=`${sh}h ${sm}m`;
-  q('#sleep-score-val').textContent=gData.sleepScore?`Score ${gData.sleepScore}/100`:'Sin score';
-
-  // HRV
-  q('#hrv-val').innerHTML=`${gData.hrv||'--'}<span class="stat-unit">ms</span>`;
-
-  // Resting HR
-  q('#rhr-val').innerHTML=`${gData.restingHR||'--'}<span class="stat-unit">bpm</span>`;
+  // Stats grid (configurable)
+  q('#stats-grid').innerHTML=buildStatsGrid(gData);
 
   // Recovery
   const rec=gData.recovery||0;
@@ -1430,6 +1415,102 @@ function renderAll(){
   renderPlan();
   renderComida();
   renderSalud();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIGURABLE INDICATORS
+// ═══════════════════════════════════════════════════════════════
+const ALL_INDICATORS = [
+  {id:'bb',    label:'Body Battery',  default:true},
+  {id:'sleep', label:'Sueno / Score', default:true},
+  {id:'hrv',   label:'HRV semanal',   default:true},
+  {id:'rhr',   label:'FC Reposo',     default:true},
+  {id:'readiness', label:'Readiness score', default:false},
+  {id:'recovery',  label:'Recovery pendiente', default:false},
+  {id:'vo2',   label:'VO2max',        default:false},
+  {id:'ftp',   label:'FTP (236W)',    default:false},
+];
+
+function getIndConfig(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('ind_cfg')||'null');
+    if(saved) return saved;
+  }catch(_){}
+  const cfg={};
+  ALL_INDICATORS.forEach(i=>cfg[i.id]=i.default);
+  return cfg;
+}
+
+function openIndModal(){
+  const cfg=getIndConfig();
+  q('#ind-list').innerHTML=ALL_INDICATORS.map(ind=>`
+    <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <span style="font-size:14px">${ind.label}</span>
+      <input type="checkbox" id="ind-${ind.id}" ${cfg[ind.id]?'checked':''} style="width:16px;height:16px;accent-color:var(--green)">
+    </label>`).join('');
+  q('#ind-modal').style.display='flex';
+}
+
+function closeIndModal(){q('#ind-modal').style.display='none';}
+
+function saveIndConfig(){
+  const cfg={};
+  ALL_INDICATORS.forEach(i=>{cfg[i.id]=q('#ind-'+i.id)?.checked||false;});
+  // Always show at least 1
+  if(!Object.values(cfg).some(Boolean)) cfg['bb']=true;
+  localStorage.setItem('ind_cfg',JSON.stringify(cfg));
+  closeIndModal();
+  renderHoy();
+}
+
+function buildStatsGrid(gData){
+  const cfg=getIndConfig();
+  const cells=[];
+  if(cfg.bb){
+    const bbVal=gData?.bb||0;
+    const bbC=bbColor(bbVal);
+    cells.push(`<div class="stat-card" onclick="showTip('Body Battery: nivel de energia actual. 0-30 critico, 30-60 moderado, 60-100 bueno. Nota: muestra el ultimo valor sincronizado con Garmin.')">
+      <div class="stat-val" style="color:${bbC}">${bbVal||'--'}</div>
+      <div class="stat-lbl">Body Battery</div>
+      <div id="bb-spark" class="spark-bar" style="margin-top:8px">${renderBBSpark(gData?.bb7)}</div>
+    </div>`);
+  }
+  if(cfg.sleep){
+    const h=Math.floor(gData?.sleep||0), m=Math.round(((gData?.sleep||0)-h)*60);
+    cells.push(`<div class="stat-card" onclick="showTip('Sueno anoche: horas totales registradas por Garmin.')">
+      <div class="stat-val">${gData?.sleep?h+'h '+m+'m':'--'}</div>
+      <div class="stat-lbl">Sueno / Score</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:4px">${gData?.sleepScore?'Score '+gData.sleepScore+'/100':''}</div>
+    </div>`);
+  }
+  if(cfg.hrv){
+    cells.push(`<div class="stat-card" onclick="showTip('HRV semanal: variabilidad FC nocturna promedio. Mayor valor = mejor recuperacion autonoma.')">
+      <div class="stat-val">${gData?.hrv||'--'}<span class="stat-unit">ms</span></div>
+      <div class="stat-lbl">HRV semanal</div>
+    </div>`);
+  }
+  if(cfg.rhr){
+    cells.push(`<div class="stat-card" onclick="showTip('FC Reposo: frecuencia cardiaca basal. Sube cuando hay fatiga, enfermedad o deshidratacion.')">
+      <div class="stat-val">${gData?.restingHR||'--'}<span class="stat-unit">bpm</span></div>
+      <div class="stat-lbl">FC Reposo</div>
+    </div>`);
+  }
+  if(cfg.readiness){
+    cells.push(`<div class="stat-card"><div class="stat-val">${gData?.readiness||'--'}<span class="stat-unit">/100</span></div><div class="stat-lbl">Readiness</div></div>`);
+  }
+  if(cfg.recovery){
+    const rh=Math.round((gData?.recovery||0)/60);
+    cells.push(`<div class="stat-card"><div class="stat-val">${rh||'--'}<span class="stat-unit">h</span></div><div class="stat-lbl">Recovery</div></div>`);
+  }
+  if(cfg.vo2){
+    cells.push(`<div class="stat-card"><div class="stat-val">${gData?.vo2max||52}<span class="stat-unit">ml</span></div><div class="stat-lbl">VO2max</div></div>`);
+  }
+  if(cfg.ftp){
+    cells.push(`<div class="stat-card"><div class="stat-val">236<span class="stat-unit">W</span></div><div class="stat-lbl">FTP</div></div>`);
+  }
+  // Fill to even number for grid
+  if(cells.length%2!==0) cells.push('<div></div>');
+  return cells.join('');
 }
 
 // ═══════════════════════════════════════════════════════════════
