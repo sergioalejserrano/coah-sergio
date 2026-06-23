@@ -1302,6 +1302,22 @@ function toggleMode(m){
     if(b){b.style.background=k===m?'var(--green-dim)':'var(--s2)';b.style.borderColor=k===m?'var(--green)':'var(--border)';b.style.color=k===m?'var(--text)':'var(--t2)';}
   });
 }
+function addToGoogleCal(){
+  const sess=window._lastSess;
+  if(!sess||!sess.duration){alert('Es un día de descanso: no hay entrenamiento para agendar.');return;}
+  const date=window._lastSheetDate||new Date().toISOString().split('T')[0];
+  // Evento a las 6:00 del día (podés moverlo en Google Calendar). Sin zona horaria
+  // explícita -> Google lo interpreta en tu calendario.
+  const start=new Date(date+'T06:00:00');
+  const end=new Date(start.getTime()+(sess.duration||60)*60000);
+  const fmt=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0')+'00';
+  const u=new URL('https://calendar.google.com/calendar/render');
+  u.searchParams.set('action','TEMPLATE');
+  u.searchParams.set('text','🚴 '+(sess.title||'Entrenamiento'));
+  u.searchParams.set('dates',fmt(start)+'/'+fmt(end));
+  u.searchParams.set('details','Coach Vegabikes — '+(sess.duration||60)+' min'+(sess.device?' · '+sess.device:''));
+  window.open(u.toString(),'_blank');
+}
 async function pushWorkoutToGarmin(){
   const sess=window._lastSess;
   if(!sess){alert('Abrí primero el día para elegir la sesión.');return;}
@@ -1444,6 +1460,7 @@ function openDaySheet(weekIdx){
       <button onclick="pushWorkoutToGarmin()" style="width:100%;margin-top:6px;background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;font-weight:600">Enviar entrenamiento a Garmin Connect</button>
     </div>
     <div id="mode-kickr" style="display:none"><div class="card-sm" style="margin-bottom:8px">${getKickrDesc(sess)}</div><button onclick="pushWorkoutToGarmin()" style="width:100%;margin-top:6px;background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;font-weight:600">Enviar a Garmin Connect (aparece en tu Edge)</button></div>
+    <button onclick="addToGoogleCal()" style="width:100%;margin-top:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;color:var(--t2);cursor:pointer;font-weight:600">Agregar a Google Calendar</button>
     `:`<div class="card-sm" style="margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(sess.desc)}</div>`}
     `:'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Dia de descanso. Aprovecha para recuperar y dorme bien.</div>'}
 

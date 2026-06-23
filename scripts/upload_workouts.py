@@ -15,17 +15,31 @@ import os, sys, json, datetime
 
 DRY_RUN = os.environ.get("DRY_RUN", "1") != "0"
 LTHR = 178   # umbral de FC de Sergio
+FTP  = 236   # potencia umbral de Sergio (W)
 
-# Sesiones tipo por zona de FC. (warmup / esfuerzo / cooldown)
+_STEP_IDS = {"warmup": 1, "cooldown": 2, "interval": 3, "recovery": 4, "rest": 5}
+
+# Paso con objetivo de FC. targetTypeId 4 = heart.rate.zone (valores en bpm).
 def hr_step(name, minutes, lo, hi, kind="interval"):
     return {
         "type": "ExecutableStepDTO",
-        "stepType": {"stepTypeId": {"warmup": 1, "cooldown": 2, "interval": 3,
-                                    "recovery": 4, "rest": 5}.get(kind, 3),
-                     "stepTypeKey": kind},
+        "stepType": {"stepTypeId": _STEP_IDS.get(kind, 3), "stepTypeKey": kind},
         "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"},
         "endConditionValue": minutes * 60,
-        "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "heart.rate.zone"},
+        "targetType": {"workoutTargetTypeId": 4, "workoutTargetTypeKey": "heart.rate.zone"},
+        "targetValueOne": lo, "targetValueTwo": hi,
+        "description": name,
+    }
+
+# Paso con objetivo de potencia. targetTypeId 2 = power.zone (valores en W).
+# El KICKR usa potencia (ERG), así que las sesiones indoor van en vatios.
+def pwr_step(name, minutes, lo, hi, kind="interval"):
+    return {
+        "type": "ExecutableStepDTO",
+        "stepType": {"stepTypeId": _STEP_IDS.get(kind, 3), "stepTypeKey": kind},
+        "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"},
+        "endConditionValue": minutes * 60,
+        "targetType": {"workoutTargetTypeId": 2, "workoutTargetTypeKey": "power.zone"},
         "targetValueOne": lo, "targetValueTwo": hi,
         "description": name,
     }
@@ -81,22 +95,24 @@ def build_from_inputs():
     dur  = int(os.environ.get("WK_DURATION", "60") or 60)
     if dot == "rest" or dur == 0:
         return None
+    # Objetivos en potencia (W) según las zonas de Sergio (FTP 236):
+    #   Z1<118 · Z2 118-165 · Z3 166-189 · Z4 190-212 · Z5 213-259
     if dot == "quality":
         return workout(name, [
-            hr_step("Calentar", 15, 110, 135, "warmup"),
+            pwr_step("Calentar", 15, 100, 140, "warmup"),
             *[s for _ in range(4) for s in (
-                hr_step("Bloque umbral Z4", 8, 162, 178, "interval"),
-                hr_step("Recuperar", 4, 110, 130, "recovery"))],
-            hr_step("Aflojar", 10, 100, 120, "cooldown"),
+                pwr_step("Bloque umbral Z4", 8, 190, 212, "interval"),
+                pwr_step("Recuperar", 4, 90, 120, "recovery"))],
+            pwr_step("Aflojar", 10, 90, 120, "cooldown"),
         ])
     # endurance / largo / z2 / race -> warmup + Z2 proporcional + cooldown
     warm, cool = 10, 10
     main_min = max(10, dur - warm - cool)
-    lo, hi = (120, 145) if (dot == "race" or dur >= 120) else (120, 139)
+    lo, hi = (130, 160) if (dot == "race" or dur >= 120) else (120, 150)
     return workout(name, [
-        hr_step("Calentar", warm, 110, 130, "warmup"),
-        hr_step("Z2 90-100 rpm", main_min, lo, hi, "interval"),
-        hr_step("Aflojar", cool, 100, 120, "cooldown"),
+        pwr_step("Calentar", warm, 100, 130, "warmup"),
+        pwr_step("Z2 90-100 rpm", main_min, lo, hi, "interval"),
+        pwr_step("Aflojar", cool, 90, 120, "cooldown"),
     ])
 
 
