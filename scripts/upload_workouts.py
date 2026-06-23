@@ -73,6 +73,33 @@ def login():
     g.login(); return g
 
 
+def build_from_inputs():
+    """Construye un workout desde variables de entorno (WK_NAME/WK_DOT/WK_DURATION).
+    Lo usa el workflow upload_workout.yml disparado desde la app."""
+    name = os.environ["WK_NAME"]
+    dot  = (os.environ.get("WK_DOT", "z2") or "z2").lower()
+    dur  = int(os.environ.get("WK_DURATION", "60") or 60)
+    if dot == "rest" or dur == 0:
+        return None
+    if dot == "quality":
+        return workout(name, [
+            hr_step("Calentar", 15, 110, 135, "warmup"),
+            *[s for _ in range(4) for s in (
+                hr_step("Bloque umbral Z4", 8, 162, 178, "interval"),
+                hr_step("Recuperar", 4, 110, 130, "recovery"))],
+            hr_step("Aflojar", 10, 100, 120, "cooldown"),
+        ])
+    # endurance / largo / z2 / race -> warmup + Z2 proporcional + cooldown
+    warm, cool = 10, 10
+    main_min = max(10, dur - warm - cool)
+    lo, hi = (120, 145) if (dot == "race" or dur >= 120) else (120, 139)
+    return workout(name, [
+        hr_step("Calentar", warm, 110, 130, "warmup"),
+        hr_step("Z2 90-100 rpm", main_min, lo, hi, "interval"),
+        hr_step("Aflojar", cool, 100, 120, "cooldown"),
+    ])
+
+
 def upload_and_schedule(g, wo, date_iso):
     # Crea el workout y lo agenda en la fecha (aparece en reloj y Edge).
     created = g.garth.connectapi("/workout-service/workout", method="POST", json=wo)
@@ -83,6 +110,21 @@ def upload_and_schedule(g, wo, date_iso):
 
 
 def main():
+    # Modo de un solo entrenamiento desde la app (workflow upload_workout.yml).
+    if os.environ.get("WK_NAME"):
+        wo = build_from_inputs()
+        if not wo:
+            print("Día de descanso: nada que subir."); return
+        date_iso = os.environ.get("WK_DATE") or datetime.date.today().isoformat()
+        if DRY_RUN:
+            print(f"[DRY_RUN] {date_iso}  {wo['workoutName']}")
+            print(json.dumps(wo, ensure_ascii=False)[:400], "…")
+            return
+        g = login()
+        wid = upload_and_schedule(g, wo, date_iso)
+        print(f"Subido y agendado {date_iso}: {wo['workoutName']} (id {wid})")
+        return
+
     # day_type por fecha lo decide la app; acá agendamos un ejemplo de la semana.
     plan = [("calidad", 2), ("endurance", 3)]   # (tipo, días-desde-hoy) p.ej. Mié, Jue
     today = datetime.date.today()

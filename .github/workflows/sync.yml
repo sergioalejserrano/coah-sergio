@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
 
       - name: Instalar dependencias
         run: pip install -r scripts/requirements.txt
@@ -31,10 +33,25 @@ jobs:
           DATA_PASSPHRASE: ${{ secrets.DATA_PASSPHRASE }}
         run: python scripts/fetch_garmin.py
 
-      - name: Commit datos
+      - name: Commit datos a la rama garmin-data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          # Guardamos los datos generados fuera del arbol de trabajo
+          mkdir -p /tmp/gd
+          cp data/garmin.enc data/meta.json /tmp/gd/
+          # Cambiamos a la rama de datos (la creamos huerfana si no existe).
+          # Asi los commits de datos NO van a main y Pages no se reconstruye.
+          git fetch origin garmin-data || true
+          if git show-ref --verify --quiet refs/remotes/origin/garmin-data; then
+            git checkout -f -B garmin-data origin/garmin-data
+          else
+            git checkout --orphan garmin-data
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          mkdir -p data
+          cp /tmp/gd/garmin.enc data/garmin.enc
+          cp /tmp/gd/meta.json  data/meta.json
+          git add data/garmin.enc data/meta.json
           git diff --staged --quiet || git commit -m "sync: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          git push
+          git push origin garmin-data

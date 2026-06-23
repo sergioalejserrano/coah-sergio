@@ -1,0 +1,54 @@
+name: Upload Workout
+
+# Disparado desde la app (botón "Enviar a Garmin"). Sube y agenda el
+# entrenamiento del día en Garmin Connect usando las credenciales del repo.
+# Las IPs de GitHub Actions no las bloquea Garmin, así que esto sí funciona
+# sin proxy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Nombre del entrenamiento'
+        required: true
+        default: 'Entrenamiento'
+      dot:
+        description: 'Tipo: rest / z1 / z2 / quality / race'
+        required: true
+        default: 'z2'
+      duration:
+        description: 'Duración en minutos'
+        required: true
+        default: '60'
+      date:
+        description: 'Fecha YYYY-MM-DD'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r scripts/requirements.txt
+
+      - name: Subir entrenamiento a Garmin Connect
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          DRY_RUN: '0'
+          WK_NAME: ${{ inputs.name }}
+          WK_DOT: ${{ inputs.dot }}
+          WK_DURATION: ${{ inputs.duration }}
+          WK_DATE: ${{ inputs.date }}
+        run: python scripts/upload_workouts.py
