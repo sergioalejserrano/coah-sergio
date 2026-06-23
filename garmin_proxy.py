@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
 Garmin Proxy para Coach Vegabikes
-Deploy en Render.com — sin pydantic (sin Rust, sin errores de compilacion)
+- Reintentos automáticos en errores 429
+- Caché de tokens en /tmp para evitar login repetido
+- Mensajes de error detallados
 """
-import os, datetime
+import os, datetime, time, json
+from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import garminconnect
@@ -16,6 +19,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+TOKEN_DIR = Path("/tmp/garmin_tokens")
+
 def ds(offset=0):
     return (datetime.date.today() - datetime.timedelta(days=offset)).isoformat()
 
@@ -25,10 +30,52 @@ def safe(fn, *args, default=None):
         print(f"  warn {getattr(fn,'__name__',str(fn))}: {e}")
         return default
 
-def login(email, password):
-    api = garminconnect.Garmin(email, password)
-    api.login()
-    return api
+def get_token_path(email: str) -> Path:
+    key = email.replace("@","_").replace(".","_")
+    return TOKEN_DIR / key
+
+def login_with_cache(email: str, password: str):
+    """Login con caché de tokens para evitar 429 por login repetido."""
+    TOKEN_DIR.mkdir(parents=True, exist_ok=True)
+    token_path = get_token_path(email)
+
+    # Intentar reusar tokens guardados
+    if token_path.exists():
+        try:
+            api = garminconnect.Garmin(email, password)
+            api.garth.load(str(token_path))
+            # Validar que el token sigue funcionando
+            api.get_user_summary(ds(0))
+            print(f"  Token cache hit for {email}")
+            return api
+        except Exception as e:
+            print(f"  Token cache invalid: {e} — logging in fresh")
+            token_path.unlink(missing_ok=True)
+
+    # Login fresco con reintentos
+    last_err = None
+    for attempt in range(3):
+        try:
+            api = garminconnect.Garmin(email, password)
+            api.login()
+            # Guardar token para próximas llamadas
+            api.garth.dump(str(token_path))
+            print(f"  Fresh login OK — token cached (attempt {attempt+1})")
+            return api
+        except Exception as e:
+            last_err = e
+            err_str = str(e).lower()
+            if "429" in err_str or "rate limit" in err_str:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                print(f"  429 rate limit, waiting {wait}s (attempt {attempt+1}/3)")
+                time.sleep(wait)
+            else:
+                # Error que no es de rate limiting — no reintentar
+                print(f"  Login error (no retry): {e}")
+                raise
+
+    raise Exception(f"Login fallido después de 3 intentos: {last_err}")
+
 
 def build_payload(api):
     today, yesterday = ds(0), ds(1)
@@ -179,6 +226,19 @@ def build_garmin_workout(name, dot, duration_mins):
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
+@app.get("/")
+def root():
+    return {
+        "service": "Garmin Proxy — Coach Vegabikes",
+        "status": "running",
+        "endpoints": {
+            "health":  "GET  /health",
+            "data":    "POST /data    {email, password}",
+            "workout": "POST /workout {email, password, name, dot, duration}",
+            "clear":   "POST /clear-cache {email}"
+        }
+    }
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "garmin-proxy-coach-vegabikes"}
@@ -190,12 +250,16 @@ async def get_data(request: Request):
         email    = body.get("email", "").strip()
         password = body.get("password", "")
         if not email or not password:
-            raise ValueError("email y password son requeridos")
-        api     = login(email, password)
+            raise ValueError("Faltan email o password")
+        print(f"GET /data for {email}")
+        api     = login_with_cache(email, password)
         payload = build_payload(api)
+        print(f"  payload OK: readiness={payload['readiness']} bb={payload['bb']}")
         return {"success": True, "payload": payload}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        err = str(e)
+        print(f"  ERROR: {err}")
+        raise HTTPException(status_code=400, detail=err)
 
 @app.post("/workout")
 async def add_workout(request: Request):
@@ -207,13 +271,30 @@ async def add_workout(request: Request):
         dot      = body.get("dot", "z2")
         duration = int(body.get("duration", 60))
         if not email or not password:
-            raise ValueError("email y password son requeridos")
-        api       = login(email, password)
-        wk_json   = build_garmin_workout(name, dot, duration)
-        result    = api.garth.post("connectapi", "/workout-service/workout", json=wk_json).json()
-        wid       = result.get("workoutId")
+            raise ValueError("Faltan email o password")
+        api     = login_with_cache(email, password)
+        wk_json = build_garmin_workout(name, dot, duration)
+        result  = api.garth.post("connectapi", "/workout-service/workout", json=wk_json).json()
+        wid     = result.get("workoutId")
         return {"success": True, "workout_id": wid,
-                "message": f"Entrenamiento '{name}' agregado (ID: {wid})"}
+                "message": f"Entrenamiento '{name}' agregado a Garmin Connect (ID: {wid})"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/clear-cache")
+async def clear_cache(request: Request):
+    """Elimina los tokens cacheados para forzar un login fresco."""
+    try:
+        body  = await request.json()
+        email = body.get("email", "").strip()
+        if email:
+            path = get_token_path(email)
+            path.unlink(missing_ok=True)
+            return {"success": True, "message": f"Cache limpiado para {email}"}
+        # Limpiar todo
+        for f in TOKEN_DIR.glob("*"):
+            f.unlink()
+        return {"success": True, "message": "Cache completo limpiado"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

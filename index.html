@@ -662,7 +662,12 @@ async function loadGarminData(){
   const purl=localStorage.getItem('proxy_url'),em=localStorage.getItem('garmin_email'),pw=localStorage.getItem('garmin_pwd');
   if(purl&&em&&pw){
     const r=await fetch(purl.replace(/\/$/,'')+'/data?v='+Date.now(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
-    if(!r.ok)throw new Error('Proxy HTTP '+r.status);const j=await r.json();if(!j.success)throw new Error(j.detail||j.error||'Proxy error');return j.payload;
+    if(!r.ok){
+      let msg='Proxy error '+r.status;
+      try{const eb=await r.json();msg=eb.detail||eb.error||msg;}catch(_){}
+      throw new Error(msg);
+    }
+    const j=await r.json();if(!j.success)throw new Error(j.detail||j.error||'Proxy error');return j.payload;
   }
   const sp=localStorage.getItem(PP_KEY);if(!sp)throw new Error('Sin credenciales');
   const res=await fetch('data/garmin.enc?v='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);
