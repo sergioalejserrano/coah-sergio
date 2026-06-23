@@ -1305,35 +1305,48 @@ function toggleMode(m){
 async function pushWorkoutToGarmin(){
   const sess=window._lastSess;
   if(!sess){alert('Abrí primero el día para elegir la sesión.');return;}
+  if(sess.dot==='rest'||!sess.duration){alert('Es un día de descanso: no hay entrenamiento para enviar.');return;}
+  const date=window._lastSheetDate||new Date().toISOString().split('T')[0];
   const purl=localStorage.getItem('proxy_url'),em=localStorage.getItem('garmin_email'),pw=localStorage.getItem('garmin_pwd');
-  // Sin proxy configurado no se puede empujar directo a Garmin: descargamos el .tcx
-  // para importarlo manualmente en Garmin Connect (Entrenamiento → Importar).
-  if(!(purl&&em&&pw)){
-    downloadTCX();
-    alert('Se descargó tu entrenamiento como archivo .tcx.\n\nImportalo en Garmin Connect:\nEntrenamiento → Entrenamientos → Importar.\n\n(Para envío automático configurá el proxy en Ajustes.)');
-    return;
-  }
-  // Feedback visual en los botones de la hoja
+  const token=localStorage.getItem('gh_token');
   const btns=Array.from(document.querySelectorAll('#sheet-content button')).filter(b=>/Garmin/i.test(b.textContent));
   const orig=btns.map(b=>b.textContent);
-  btns.forEach(b=>{b.disabled=true;b.textContent='Enviando a Garmin...';});
+  const setBtns=(txt,dis)=>btns.forEach((b,i)=>{b.disabled=dis;b.textContent=txt===null?orig[i]:txt;});
+  setBtns('Enviando a Garmin...',true);
   try{
-    const r=await fetch(purl.replace(/\/$/,'')+'/workout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw,name:sess.title||'Entrenamiento',dot:sess.dot||'z2',duration:sess.duration||60})});
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok||!j.success) throw new Error(j.detail||j.message||j.error||('Error '+r.status));
-    btns.forEach((b,i)=>{b.disabled=false;b.textContent=orig[i];});
-    alert(j.message||'Entrenamiento enviado a Garmin Connect. Aparecerá en tu Edge/reloj al sincronizar.');
+    if(purl&&em&&pw){
+      // Vía proxy: envío directo e inmediato
+      const r=await fetch(purl.replace(/\/$/,'')+'/workout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw,name:sess.title||'Entrenamiento',dot:sess.dot||'z2',duration:sess.duration||60})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.success) throw new Error(j.detail||j.message||j.error||('Error '+r.status));
+      setBtns(null,false);
+      alert(j.message||'Entrenamiento enviado a Garmin Connect. Aparecerá en tu Edge/reloj al sincronizar.');
+    } else if(token){
+      // Vía GitHub Actions: sube y agenda en Garmin con las credenciales del repo
+      // (las IPs de Actions no las bloquea Garmin, así que esto sí envía de verdad).
+      const dr=await fetch('https://api.github.com/repos/'+GH_REPO+'/actions/workflows/upload_workout.yml/dispatches',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
+        body:JSON.stringify({ref:'main',inputs:{name:sess.title||'Entrenamiento',dot:sess.dot||'z2',duration:String(sess.duration||60),date}})
+      });
+      if(dr.status!==204){
+        const e=await dr.json().catch(()=>({}));
+        if(dr.status===401||dr.status===403) throw new Error('Token de GitHub inválido o sin permiso Actions. Revisalo en Ajustes.');
+        throw new Error(e.message||('GitHub '+dr.status));
+      }
+      setBtns(null,false);
+      alert('Entrenamiento enviado a Garmin (vía GitHub Actions).\nSe agenda para el '+date+' y aparecerá en tu reloj/Edge al sincronizar (~1 min).');
+    } else {
+      throw new Error('NOTOKEN');
+    }
   }catch(e){
-    btns.forEach((b,i)=>{b.disabled=false;b.textContent=orig[i];});
-    downloadTCX();
-    alert('No se pudo enviar por el proxy ('+e.message+').\nSe descargó como .tcx para importarlo manualmente en Garmin Connect.');
+    setBtns(null,false);
+    if(e.message==='NOTOKEN'){
+      alert('Para enviar a Garmin configurá el GitHub token en Ajustes (⚙). Es el mismo que usás para actualizar tus datos.');
+    } else {
+      alert('No se pudo enviar a Garmin: '+e.message);
+    }
   }
-}
-function downloadTCX(){
-  const s=window._lastSess||{dot:'z2',title:'KICKR',duration:60};
-  const steps=s.dot==='quality'?[{n:'Calentamiento',t:900},{n:'Intervalo 1',t:480},{n:'Rec',t:240},{n:'Intervalo 2',t:480},{n:'Rec',t:240},{n:'Intervalo 3',t:480},{n:'Rec',t:240},{n:'Intervalo 4',t:480},{n:'Enfriamiento',t:900}]:[{n:'Calentamiento',t:600},{n:'Bloque Z2',t:2400},{n:'Enfriamiento',t:600}];
-  const xml='<?xml version="1.0" encoding="UTF-8"?><TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Workouts><Workout Sport="Biking"><Name>'+(s.title||'KICKR')+'</Name>'+steps.map((st,i)=>'<Step xsi:type="Step_t"><StepId>'+(i+1)+'</StepId><Name>'+st.n+'</Name><Duration xsi:type="Time_t"><Seconds>'+st.t+'</Seconds></Duration><Intensity>Active</Intensity></Step>').join('')+'</Workout></Workouts></TrainingCenterDatabase>';
-  const a=document.createElement('a');a.href='data:text/xml;charset=utf-8,'+encodeURIComponent(xml);a.download=(s.title||'kickr').replace(/[^a-z0-9]/gi,'_')+'.tcx';document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 function getOutdoorDesc(sess){
   const ph=getCurrentPhase().name;
@@ -1393,6 +1406,7 @@ function openDaySheet(weekIdx){
   const dow=d.getDay();
   const sess=getSession(gData||{},dow);
   window._lastSess=sess; window._sheetMode='exterior';
+  window._lastSheetDate=d.toISOString().split('T')[0];
   const colors={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
   const col=colors[sess.dot]||'var(--t3)';
 
