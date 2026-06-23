@@ -43,7 +43,7 @@ def login_with_cache(email: str, password: str):
     if token_path.exists():
         try:
             api = garminconnect.Garmin(email, password)
-            api.garth.load(str(token_path))
+            api.client.load(str(token_path))
             # Validar que el token sigue funcionando
             api.get_user_summary(ds(0))
             print(f"  Token cache hit for {email}")
@@ -59,7 +59,7 @@ def login_with_cache(email: str, password: str):
             api = garminconnect.Garmin(email, password)
             api.login()
             # Guardar token para próximas llamadas
-            api.garth.dump(str(token_path))
+            api.client.dump(str(token_path))
             print(f"  Fresh login OK — token cached (attempt {attempt+1})")
             return api
         except Exception as e:
@@ -274,8 +274,8 @@ async def add_workout(request: Request):
             raise ValueError("Faltan email o password")
         api     = login_with_cache(email, password)
         wk_json = build_garmin_workout(name, dot, duration)
-        result  = api.garth.post("connectapi", "/workout-service/workout", json=wk_json).json()
-        wid     = result.get("workoutId")
+        result  = api.upload_workout(wk_json)
+        wid     = (result or {}).get("workoutId")
         return {"success": True, "workout_id": wid,
                 "message": f"Entrenamiento '{name}' agregado a Garmin Connect (ID: {wid})"}
     except Exception as e:
