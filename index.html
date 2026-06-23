@@ -222,6 +222,13 @@ select.form-ctrl option{background:var(--s2)}
         <div class="form-group"><label>Frase de descifrado</label>
           <input class="form-ctrl" id="pp-input" type="password" placeholder="Tu frase secreta" autocomplete="off">
         </div>
+        <div class="form-group" style="margin-bottom:4px"><label>GitHub token (opcional — actualizar al instante)</label>
+          <input class="form-ctrl" id="pp-ghtoken" type="password" placeholder="github_pat_... o ghp_..." autocomplete="off">
+        </div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.5;margin-bottom:4px">
+          Con un token, el botón ↻ baja datos frescos de Garmin al instante (dispara el sync). Sin token, ↻ solo recarga el último sync automático (cada 4h).
+          <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--green)">Crear token</a> → fine-grained, repo <code style="background:var(--s1);padding:1px 4px;border-radius:3px">coah-sergio</code>, permiso <b>Actions: Read &amp; write</b>.
+        </div>
       </div>
       <details>
         <summary style="font-size:11px;color:var(--t3);cursor:pointer;list-style:none;padding:4px 0 10px">
@@ -591,11 +598,6 @@ select.form-ctrl option{background:var(--s2)}
   </div>
 
   <!-- Races link -->
-  <div class="card" style="margin-bottom:12px">
-    <div class="label" style="margin-bottom:10px">Dias de oficina (sin entreno)</div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="office-grid"></div>
-    <div style="font-size:11px;color:var(--t3);margin-top:8px">Toca para activar/desactivar</div>
-  </div>
   <button class="btn btn-secondary" style="width:100%;margin-bottom:12px" onclick="showCarreras()">
     Ver calendario de carreras
   </button>
@@ -737,6 +739,9 @@ async function tryPassphrase(){
     const groq=(q('#pp-groq')?.value||'').trim();
     if(groq) localStorage.setItem('groq_key',groq);
 
+    const ght=(q('#pp-ghtoken')?.value||'').trim();
+    if(ght) localStorage.setItem('gh_token',ght);
+
     const mode=localStorage.getItem('setup_mode')||'classic';
 
     if(mode==='proxy'){
@@ -771,13 +776,50 @@ async function tryPassphrase(){
   finally{btn.textContent='Comenzar';btn.disabled=false;}
 }
 
+const GH_REPO='sergioalejserrano/coah-sergio';
+async function getMetaUpdated(){
+  try{const r=await fetch('data/meta.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)return null;return (await r.json()).updated;}catch(_){return null;}
+}
 async function refreshData(){
-  q('#sync-txt').textContent='Actualizando...';
+  const txt=q('#sync-txt');
+  const mode=localStorage.getItem('setup_mode')||'classic';
+  const ghToken=localStorage.getItem('gh_token');
+  // Modo proxy: baja en vivo de Garmin -> solo recargar.
+  // Modo frase sin token: el .enc solo cambia cada 4h, recargamos lo que haya.
+  if(mode==='proxy'||!ghToken){
+    txt.textContent='Actualizando...';
+    try{gData=await loadGarminData();renderAll();}
+    catch(e){txt.textContent='Error al actualizar';}
+    return;
+  }
+  // Modo frase con token: disparamos el workflow para traer datos frescos de Garmin.
   try{
+    const prev=await getMetaUpdated();
+    txt.textContent='Pidiendo datos a Garmin...';
+    const dr=await fetch('https://api.github.com/repos/'+GH_REPO+'/actions/workflows/sync.yml/dispatches',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+ghToken,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
+      body:JSON.stringify({ref:'main'})
+    });
+    if(dr.status!==204){
+      const e=await dr.json().catch(()=>({}));
+      if(dr.status===401||dr.status===403){throw new Error('Token de GitHub inválido o sin permiso Actions. Revisalo en Ajustes.');}
+      throw new Error(e.message||('GitHub '+dr.status));
+    }
+    // El workflow tarda ~40-90s y Pages tarda otro poco en publicar el nuevo .enc.
+    txt.textContent='Sincronizando con Garmin (~1-2 min)...';
+    let updated=null;
+    for(let i=0;i<45;i++){
+      await new Promise(r=>setTimeout(r,4000));
+      const m=await getMetaUpdated();
+      if(m&&m!==prev){updated=m;break;}
+      txt.textContent='Sincronizando con Garmin... '+((i+1)*4)+'s';
+    }
+    if(!updated){txt.textContent='El sync sigue corriendo. Tocá ↻ de nuevo en un momento.';return;}
     gData=await loadGarminData();
     renderAll();
   }catch(e){
-    q('#sync-txt').textContent='Error al actualizar';
+    txt.textContent='Error: '+(e.message||'no se pudo actualizar');
   }
 }
 
@@ -858,6 +900,7 @@ function openSettings(){
   if(f('password'))f('password').value='';
   if(f('proxy'))f('proxy').value=localStorage.getItem('proxy_url')||'';
   if(f('groq'))f('groq').value=localStorage.getItem('groq_key')||'';
+  if(f('ghtoken'))f('ghtoken').value=localStorage.getItem('gh_token')||'';
   const savedPP=localStorage.getItem(PP_KEY);
   if(f('input'))f('input').value='';
   if(savedPP&&savedMode==='classic'){
@@ -1223,12 +1266,40 @@ function getSleepRec(dow){
   return "8-9h. Acostate entre 10-10:30pm para maximizar el HRV nocturno.";
 }
 function toggleMode(m){
+  window._sheetMode=m;
   ['exterior','kickr'].forEach(k=>{
     const d=document.getElementById('mode-'+k);
     const b=document.getElementById('btn-'+k);
     if(d) d.style.display=k===m?'block':'none';
     if(b){b.style.background=k===m?'var(--green-dim)':'var(--s2)';b.style.borderColor=k===m?'var(--green)':'var(--border)';b.style.color=k===m?'var(--text)':'var(--t2)';}
   });
+}
+async function pushWorkoutToGarmin(){
+  const sess=window._lastSess;
+  if(!sess){alert('Abrí primero el día para elegir la sesión.');return;}
+  const purl=localStorage.getItem('proxy_url'),em=localStorage.getItem('garmin_email'),pw=localStorage.getItem('garmin_pwd');
+  // Sin proxy configurado no se puede empujar directo a Garmin: descargamos el .tcx
+  // para importarlo manualmente en Garmin Connect (Entrenamiento → Importar).
+  if(!(purl&&em&&pw)){
+    downloadTCX();
+    alert('Se descargó tu entrenamiento como archivo .tcx.\n\nImportalo en Garmin Connect:\nEntrenamiento → Entrenamientos → Importar.\n\n(Para envío automático configurá el proxy en Ajustes.)');
+    return;
+  }
+  // Feedback visual en los botones de la hoja
+  const btns=Array.from(document.querySelectorAll('#sheet-content button')).filter(b=>/Garmin/i.test(b.textContent));
+  const orig=btns.map(b=>b.textContent);
+  btns.forEach(b=>{b.disabled=true;b.textContent='Enviando a Garmin...';});
+  try{
+    const r=await fetch(purl.replace(/\/$/,'')+'/workout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw,name:sess.title||'Entrenamiento',dot:sess.dot||'z2',duration:sess.duration||60})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.success) throw new Error(j.detail||j.message||j.error||('Error '+r.status));
+    btns.forEach((b,i)=>{b.disabled=false;b.textContent=orig[i];});
+    alert(j.message||'Entrenamiento enviado a Garmin Connect. Aparecerá en tu Edge/reloj al sincronizar.');
+  }catch(e){
+    btns.forEach((b,i)=>{b.disabled=false;b.textContent=orig[i];});
+    downloadTCX();
+    alert('No se pudo enviar por el proxy ('+e.message+').\nSe descargó como .tcx para importarlo manualmente en Garmin Connect.');
+  }
 }
 function downloadTCX(){
   const s=window._lastSess||{dot:'z2',title:'KICKR',duration:60};
@@ -1293,6 +1364,7 @@ function openDaySheet(weekIdx){
   const d=days[weekIdx];
   const dow=d.getDay();
   const sess=getSession(gData||{},dow);
+  window._lastSess=sess; window._sheetMode='exterior';
   const colors={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
   const col=colors[sess.dot]||'var(--t3)';
 
@@ -1466,8 +1538,6 @@ function renderSalud(){
   const pct=Math.min(100,Math.max(0,Math.round((wStart-wCurr)/(wStart-wGoal)*100)));
   q('#goal-pct').textContent=pct+'%';
   q('#goal-bar').style.width=pct+'%';
-  const odg=q('#office-grid');
-  if(odg){const od=getOfficeDays();const dn=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];odg.innerHTML=dn.map((n,i)=>'<div onclick="toggleOfficeDay('+i+')" style="text-align:center;padding:8px 2px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;background:'+(od.includes(i)?'var(--green-dim)':'var(--s2)')+';border:1px solid '+(od.includes(i)?'var(--green)':'var(--border)')+';color:'+(od.includes(i)?'var(--green)':'var(--t3)')+'">'+n+'</div>').join('');}
 
   // History
   q('#inbody-history').innerHTML=inbody.slice().reverse().map((m,i)=>`
@@ -1735,12 +1805,39 @@ async function callGroq(msgs,vis=false){
   if(!k) throw new Error('Agrega tu API key en Ajustes (gratis en openrouter.ai)');
   const isOR=k.startsWith('sk-or-');
   const url=isOR?'https://openrouter.ai/api/v1/chat/completions':'https://api.groq.com/openai/v1/chat/completions';
-  const model=isOR?(vis?'meta-llama/llama-3.2-11b-vision-instruct:free':'meta-llama/llama-3.3-70b-instruct:free'):(vis?'llama-3.2-11b-vision-preview':'llama-3.3-70b-versatile');
+  // Lista de modelos a intentar en orden. Los modelos :free de OpenRouter suelen
+  // devolver "Provider returned error" cuando el proveedor upstream esta saturado,
+  // asi que probamos varios como respaldo antes de rendirnos.
+  const models=isOR
+    ?(vis?['meta-llama/llama-3.2-11b-vision-instruct:free']
+         :['meta-llama/llama-3.3-70b-instruct:free','google/gemma-2-9b-it:free','mistralai/mistral-7b-instruct:free','meta-llama/llama-3.2-3b-instruct:free'])
+    :[vis?'llama-3.2-11b-vision-preview':'llama-3.3-70b-versatile'];
   const headers={'Authorization':'Bearer '+k,'Content-Type':'application/json'};
-  if(isOR) headers['HTTP-Referer']='https://sergioalejserrano.github.io';
-  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,messages:msgs,max_tokens:1500,temperature:0.7})});
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'AI error '+r.status);}
-  return (await r.json()).choices[0].message.content;
+  if(isOR){headers['HTTP-Referer']='https://sergioalejserrano.github.io';headers['X-Title']='Coach Vegabikes';}
+  let lastErr='No se pudo contactar al coach';
+  for(const model of models){
+    for(let attempt=0;attempt<2;attempt++){
+      try{
+        const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,messages:msgs,max_tokens:1500,temperature:0.7})});
+        if(r.ok){
+          const j=await r.json();
+          const c=j.choices?.[0]?.message?.content;
+          if(c) return c;
+          lastErr=j.error?.message||'Respuesta vacia del modelo';
+        }else{
+          const e=await r.json().catch(()=>({}));
+          lastErr=e.error?.message||('AI error '+r.status);
+          // 401/403 = key invalida: no tiene sentido reintentar ni cambiar de modelo
+          if(r.status===401||r.status===403) throw new Error(lastErr);
+        }
+      }catch(err){
+        if(/^401|^403|key/i.test(err.message)) throw err;
+        lastErr=err.message||lastErr;
+      }
+      await new Promise(res=>setTimeout(res,700*(attempt+1)));
+    }
+  }
+  throw new Error(lastErr+' (probá de nuevo en unos segundos o cambiá de key en Ajustes)');
 }
 async function extractPDFText(b64){
   const {getDocument,GlobalWorkerOptions}=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
