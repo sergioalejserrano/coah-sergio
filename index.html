@@ -208,9 +208,9 @@ select.form-ctrl option{background:var(--s2)}
     <div style="text-align:center;font-size:11px;color:var(--t3);margin-bottom:10px">— o con garmin.enc —</div>
     <div class="form-group"><label>Frase de descifrado</label><input class="form-ctrl" id="pp-input" type="password" autocomplete="off"></div>
     <div style="background:var(--s2);border-radius:8px;padding:12px;margin:12px 0">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:8px">Coach IA — Groq (gratis)</div>
-      <div class="form-group" style="margin-bottom:4px"><label>Groq API Key</label><input class="form-ctrl" id="pp-groq" placeholder="gsk_..." autocomplete="off"></div>
-      <a href="https://console.groq.com/keys" target="_blank" style="font-size:11px;color:var(--green)">Obtene clave gratis en groq.com →</a>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:8px">Coach IA — OpenRouter o Groq (gratis)</div>
+      <div class="form-group" style="margin-bottom:4px"><label>Groq API Key</label><input class="form-ctrl" id="pp-groq" placeholder="sk-or-... o gsk_..." autocomplete="off"></div>
+      <a href="https://openrouter.ai/keys" target="_blank" style="font-size:11px;color:var(--green)">openrouter.ai</a> <span style="color:var(--t3);font-size:11px">(recomendado, sk-or-...) o</span> <a href="https://console.groq.com/keys" target="_blank" style="font-size:11px;color:var(--t2)">groq.com</a>
     </div>
     <div id="pp-err" style="color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px"></div>
     <button id="pp-btn" class="btn btn-primary" style="width:100%" onclick="tryPassphrase()">Comenzar</button>
@@ -1163,7 +1163,10 @@ function openDaySheet(weekIdx){
       <button id="btn-exterior" onclick="toggleMode('exterior')" style="background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:10px;color:var(--text);cursor:pointer;font-size:12px;font-weight:700">Exterior<br><span style="font-weight:400;color:var(--t2);font-size:10px">Edge 1040</span></button>
       <button id="btn-kickr" onclick="toggleMode('kickr')" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--t2);cursor:pointer;font-size:12px;font-weight:700">KICKR Indoor<br><span style="font-weight:400;font-size:10px">KICKR CORE</span></button>
     </div>
-    <div id="mode-exterior" class="card-sm" style="margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(getOutdoorDesc(sess))}</div>
+    <div id="mode-exterior" style="display:block">
+      <div class="card-sm" style="margin-bottom:8px">${getOutdoorDesc(sess)}</div>
+      <button onclick="pushWorkoutToGarmin()" style="width:100%;margin-top:6px;background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;font-weight:600">Enviar entrenamiento a Garmin Connect</button>
+    </div>
     <div id="mode-kickr" style="display:none"><div class="card-sm" style="margin-bottom:8px">${getKickrDesc(sess)}</div><button onclick="pushWorkoutToGarmin()" style="width:100%;margin-top:6px;background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;font-weight:600">Enviar a Garmin Connect (aparece en tu Edge)</button></div>
     `:`<div class="card-sm" style="margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(sess.desc)}</div>`}
     `:'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Dia de descanso. Aprovecha para recuperar y dorme bien.</div>'}
@@ -1504,7 +1507,7 @@ function initCoach(){
     q('#puter-status').textContent='Conectando con Claude...';
     setTimeout(()=>{
       if(typeof puter!=='undefined'){puterReady=true;q('#puter-status').style.display='none';}
-      else{const ps2=q('#puter-status');if(ps2)ps2.innerHTML='Agrega Groq API key en <a href="https://console.groq.com/keys" target="_blank" style="color:var(--green)">groq.com</a> (gratis) via Ajustes.';}
+      else{const ps2=q('#puter-status');if(ps2)ps2.innerHTML='Agrega tu API key en Ajustes. Gratis en <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai</a> (recomendado) o groq.com';}
     },3000);
   }
 
@@ -1572,9 +1575,15 @@ function addMsg(role,text){
 }
 
 async function callGroq(msgs,vis=false){
-  const k=localStorage.getItem('groq_key');if(!k)throw new Error('Agrega tu Groq API key en Ajustes (groq.com es gratis)');
-  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+k,'Content-Type':'application/json'},body:JSON.stringify({model:vis?'llama-3.2-11b-vision-preview':'llama-3.3-70b-versatile',messages:msgs,max_tokens:1500,temperature:0.7})});
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'Groq error '+r.status);}
+  const k=localStorage.getItem('groq_key');
+  if(!k) throw new Error('Agrega tu API key en Ajustes (gratis en openrouter.ai)');
+  const isOR=k.startsWith('sk-or-');
+  const url=isOR?'https://openrouter.ai/api/v1/chat/completions':'https://api.groq.com/openai/v1/chat/completions';
+  const model=isOR?(vis?'meta-llama/llama-3.2-11b-vision-instruct:free':'meta-llama/llama-3.3-70b-instruct:free'):(vis?'llama-3.2-11b-vision-preview':'llama-3.3-70b-versatile');
+  const headers={'Authorization':'Bearer '+k,'Content-Type':'application/json'};
+  if(isOR) headers['HTTP-Referer']='https://sergioalejserrano.github.io';
+  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,messages:msgs,max_tokens:1500,temperature:0.7})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'AI error '+r.status);}
   return (await r.json()).choices[0].message.content;
 }
 async function extractPDFText(b64){
@@ -1656,7 +1665,7 @@ function renderAll(){
 // ═══════════════════════════════════════════════════════════════
 let _aiMode='';
 function uploadAIFile(mode){
-  if(!localStorage.getItem('groq_key')){alert('Agrega tu Groq API key en Ajustes (groq.com es gratis).');return;}
+  if(!localStorage.getItem('groq_key')){alert('Agrega tu API key en Ajustes.\nGratis en openrouter.ai (recomendado)');return;}
   _aiMode=mode;
   q('#ai-file-input').click();
 }
