@@ -213,7 +213,29 @@ select.form-ctrl option{background:var(--s2)}
       <a href="https://openrouter.ai/keys" target="_blank" style="font-size:11px;color:var(--green)">openrouter.ai</a> <span style="color:var(--t3);font-size:11px">(recomendado, sk-or-...) o</span> <a href="https://console.groq.com/keys" target="_blank" style="font-size:11px;color:var(--t2)">groq.com</a>
     </div>
     <div id="pp-err" style="color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px"></div>
-    <button id="pp-btn" class="btn btn-primary" style="width:100%" onclick="tryPassphrase()">Comenzar</button>
+    <button id="pp-btn" class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="tryPassphrase()">Comenzar</button>
+    <details style="cursor:pointer">
+      <summary style="font-size:11px;color:var(--t3);text-align:center;list-style:none;padding:4px">¿Amigos? Ver instrucciones</summary>
+      <div style="background:var(--s3);border-radius:8px;padding:14px;margin-top:10px;font-size:12px;line-height:1.7">
+        <div style="font-weight:700;color:var(--amber);margin-bottom:8px">Setup para amigos (~10 min, gratis)</div>
+        <div style="color:var(--t2)">
+          <b style="color:var(--text)">1.</b> Crea cuenta en <a href="https://github.com/signup" target="_blank" style="color:var(--green)">github.com</a> si no tenes<br>
+          <b style="color:var(--text)">2.</b> <a href="https://github.com/sergioalejserrano/coah-sergio/fork" target="_blank" style="color:var(--green)">Forkea el repositorio</a> (1 clic)<br>
+          <b style="color:var(--text)">3.</b> En tu fork: Settings → Secrets and variables → Actions<br>
+          &nbsp;&nbsp;&nbsp;Agrega 3 secrets:<br>
+          &nbsp;&nbsp;&nbsp;<code style="background:var(--s1);padding:1px 5px;border-radius:3px">GARMIN_EMAIL</code> → tu email de Garmin<br>
+          &nbsp;&nbsp;&nbsp;<code style="background:var(--s1);padding:1px 5px;border-radius:3px">GARMIN_PASSWORD</code> → tu contraseña de Garmin<br>
+          &nbsp;&nbsp;&nbsp;<code style="background:var(--s1);padding:1px 5px;border-radius:3px">DATA_PASSPHRASE</code> → cualquier frase secreta<br>
+          <b style="color:var(--text)">4.</b> Settings → Pages → Source: Deploy from branch → main<br>
+          <b style="color:var(--text)">5.</b> Actions → "Sync Garmin" → Run workflow<br>
+          <b style="color:var(--text)">6.</b> Abre <code style="background:var(--s1);padding:1px 5px">tuusuario.github.io/coah-sergio</code> y usa tu frase<br>
+          <b style="color:var(--text)">7.</b> Para el chat: clave gratis en <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai</a>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--t3);font-size:11px">
+          Por que no funciona con el proxy: Garmin bloquea las IPs de servidores. GitHub Actions usa IPs rotativas que no estan bloqueadas.
+        </div>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -684,7 +706,8 @@ async function tryPassphrase(){
           phrase=(q('#pp-input')?.value||'').trim();
     if(groq) localStorage.setItem('groq_key',groq);
     if(em&&pw&&purl){localStorage.setItem('garmin_email',em);localStorage.setItem('garmin_pwd',pw);localStorage.setItem('proxy_url',purl);}
-    else if(phrase){localStorage.setItem(PP_KEY,phrase);pp=phrase;}
+    else if(phrase&&!phrase.startsWith('(guardada')){localStorage.setItem(PP_KEY,phrase);pp=phrase;}
+    else if(!phrase&&localStorage.getItem(PP_KEY)){pp=localStorage.getItem(PP_KEY);/* keep existing */}
     else throw new Error('Ingresa credenciales+proxy o frase de descifrado');
     gData=await loadGarminData();q('#pp-modal').style.display='none';renderAll();
   }catch(e){err.textContent=e.message||'Error';}
@@ -765,7 +788,9 @@ function openSettings(){
   if(f('password'))f('password').value='';
   if(f('proxy'))f('proxy').value=localStorage.getItem('proxy_url')||'';
   if(f('groq'))f('groq').value=localStorage.getItem('groq_key')||'';
-  if(f('input'))f('input').value='';
+  // Pre-fill passphrase hint if in classic mode
+  const savedPP=localStorage.getItem(PP_KEY);
+  if(f('input'))f('input').value=savedPP?'(guardada — borrala para cambiar)':'';
   if(q('#pp-err'))q('#pp-err').textContent='';
   q('#pp-modal').style.display='flex';
 }
