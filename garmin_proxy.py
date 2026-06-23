@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """
 Garmin Proxy para Coach Vegabikes
-Deploy en Render.com (free tier) — HTTPS automático
-
-Variables de entorno en Render:
-  ALLOWED_ORIGINS = https://sergioalejserrano.github.io  (o * para cualquier origen)
+Deploy en Render.com — sin pydantic (sin Rust, sin errores de compilacion)
 """
-import os, json, datetime
-from fastapi import FastAPI, HTTPException
+import os, datetime
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import garminconnect
 
 app = FastAPI(title="Garmin Proxy — Coach Vegabikes")
@@ -29,17 +25,6 @@ def safe(fn, *args, default=None):
         print(f"  warn {getattr(fn,'__name__',str(fn))}: {e}")
         return default
 
-class CredsReq(BaseModel):
-    email: str
-    password: str
-
-class WorkoutReq(BaseModel):
-    email: str
-    password: str
-    name: str
-    dot: str        # 'quality', 'z2', 'z1', 'race'
-    duration: int   # minutes
-
 def login(email, password):
     api = garminconnect.Garmin(email, password)
     api.login()
@@ -56,8 +41,7 @@ def build_payload(api):
             vals = day.get("bodyBatteryValuesArray") or []
             if vals:
                 nn = [v[1] for v in vals if v and len(v)>1 and v[1] is not None]
-                peak = max(nn, default=0)
-                last_val = nn[-1] if nn else 0
+                peak, last_val = max(nn, default=0), (nn[-1] if nn else 0)
             else:
                 peak = day.get("charged") or 0
                 last_val = 0
@@ -110,7 +94,7 @@ def build_payload(api):
     an_min, an_max = 200, 500
     ts = safe(api.get_training_status, yesterday, default=None)
     if isinstance(ts, dict):
-        lb = ts.get("mostRecentTrainingLoadBalance") or {}
+        lb  = ts.get("mostRecentTrainingLoadBalance") or {}
         tlm = lb.get("metricsTrainingLoadBalanceDTOMap") or {}
         if tlm:
             inner = next(iter(tlm.values()), {})
@@ -130,13 +114,13 @@ def build_payload(api):
     act_str, tss, norm_pwr, vo2max = "", 0, 0, 0
     if acts:
         a = acts[0]
-        dist_km = round((a.get("distance") or 0)/1000, 1)
-        hr_a    = a.get("averageHR") or a.get("maxHR") or 0
-        power   = a.get("avgPower") or 0
-        tss     = int(a.get("trainingStressScore") or 0)
-        norm_pwr= int(a.get("normPower") or 0)
-        vo2max  = float(a.get("vO2MaxValue") or 0)
-        act_str = f"{a.get('activityName','')} {dist_km}km FC{hr_a} {power}W"
+        dist_km  = round((a.get("distance") or 0)/1000, 1)
+        hr_a     = a.get("averageHR") or a.get("maxHR") or 0
+        power    = a.get("avgPower") or 0
+        tss      = int(a.get("trainingStressScore") or 0)
+        norm_pwr = int(a.get("normPower") or 0)
+        vo2max   = float(a.get("vO2MaxValue") or 0)
+        act_str  = f"{a.get('activityName','')} {dist_km}km FC{hr_a} {power}W"
 
     return {
         "ts":         datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -155,40 +139,32 @@ def build_payload(api):
         "load": {
             "aerobicHigh": int(aerobic_high), "aerobicLow": int(aerobic_low),
             "anaerobic": int(anaerobic),
-            "ahMin":ah_min,"ahMax":ah_max,"alMin":al_min,"alMax":al_max,
-            "anMin":an_min,"anMax":an_max,
+            "ahMin": ah_min, "ahMax": ah_max,
+            "alMin": al_min, "alMax": al_max,
+            "anMin": an_min, "anMax": an_max,
         },
     }
 
 def build_garmin_workout(name, dot, duration_mins):
-    """Build Garmin Connect workout JSON for structured workouts."""
-    is_quality = dot == 'quality'
+    is_quality = dot == "quality"
+    raw = ([
+        ("Calentamiento", 900), ("Intervalo 1", 480), ("Rec", 240),
+        ("Intervalo 2", 480), ("Rec", 240), ("Intervalo 3", 480), ("Rec", 240),
+        ("Intervalo 4", 480), ("Enfriamiento", 900),
+    ] if is_quality else [
+        ("Calentamiento", 600), ("Bloque Z2", 2400), ("Enfriamiento", 600),
+    ])
     steps = []
-    if is_quality:
-        raw = [
-            ("Calentamiento", 900, 100, 160),
-            ("Intervalo 1",   480, 175, 190), ("Recuperacion", 240, 90, 110),
-            ("Intervalo 2",   480, 175, 190), ("Recuperacion", 240, 90, 110),
-            ("Intervalo 3",   480, 175, 190), ("Recuperacion", 240, 90, 110),
-            ("Intervalo 4",   480, 175, 190),
-            ("Enfriamiento",  900, 100, 130),
-        ]
-    else:
-        raw = [
-            ("Calentamiento",   600, 100, 140),
-            ("Bloque Z2",      2400, 140, 165),
-            ("Enfriamiento",    600,  90, 120),
-        ]
-    for i, (n, secs, lo, hi) in enumerate(raw):
+    for i, (n, secs) in enumerate(raw):
+        stype = "warmup" if i == 0 else ("cooldown" if i == len(raw)-1 else "interval")
+        stid  = 3 if i == 0 else (5 if i == len(raw)-1 else 1)
         steps.append({
             "type": "WorkoutStep",
             "stepOrder": i + 1,
-            "stepType": {"stepTypeId": 3 if i == 0 else (5 if i == len(raw)-1 else 1), "stepTypeKey": "warmup" if i == 0 else ("cooldown" if i == len(raw)-1 else "interval")},
+            "stepType": {"stepTypeId": stid, "stepTypeKey": stype},
             "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"},
             "endConditionValue": secs,
-            "targetType": {"workoutTargetTypeId": 2, "workoutTargetTypeKey": "power.zone"},
-            "targetValueOne": lo,
-            "targetValueTwo": hi,
+            "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"},
         })
     return {
         "workoutName": name,
@@ -198,31 +174,46 @@ def build_garmin_workout(name, dot, duration_mins):
             "segmentOrder": 1,
             "sportType": {"sportTypeId": 2, "sportTypeKey": "cycling"},
             "workoutSteps": steps,
-        }]
+        }],
     }
+
+# ── Endpoints ──────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "garmin-proxy-coach-vegabikes"}
 
 @app.post("/data")
-async def get_data(req: CredsReq):
+async def get_data(request: Request):
     try:
-        api = login(req.email, req.password)
+        body     = await request.json()
+        email    = body.get("email", "").strip()
+        password = body.get("password", "")
+        if not email or not password:
+            raise ValueError("email y password son requeridos")
+        api     = login(email, password)
         payload = build_payload(api)
         return {"success": True, "payload": payload}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/workout")
-async def add_workout(req: WorkoutReq):
+async def add_workout(request: Request):
     try:
-        api = login(req.email, req.password)
-        wk_json = build_garmin_workout(req.name, req.dot, req.duration)
-        # POST to Garmin workout service via authenticated session
-        result = api.garth.post("connectapi", "/workout-service/workout", json=wk_json).json()
-        wid = result.get("workoutId")
-        return {"success": True, "workout_id": wid, "message": f"Entrenamiento '{req.name}' agregado a Garmin Connect (ID: {wid})"}
+        body     = await request.json()
+        email    = body.get("email", "").strip()
+        password = body.get("password", "")
+        name     = body.get("name", "Entrenamiento KICKR")
+        dot      = body.get("dot", "z2")
+        duration = int(body.get("duration", 60))
+        if not email or not password:
+            raise ValueError("email y password son requeridos")
+        api       = login(email, password)
+        wk_json   = build_garmin_workout(name, dot, duration)
+        result    = api.garth.post("connectapi", "/workout-service/workout", json=wk_json).json()
+        wid       = result.get("workoutId")
+        return {"success": True, "workout_id": wid,
+                "message": f"Entrenamiento '{name}' agregado (ID: {wid})"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
