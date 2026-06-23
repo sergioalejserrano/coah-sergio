@@ -2,6 +2,7 @@ services:
   - type: web
     name: garmin-proxy-coach
     runtime: python
+    pythonVersion: "3.11.9"
     buildCommand: pip install -r requirements_proxy.txt
     startCommand: uvicorn garmin_proxy:app --host 0.0.0.0 --port $PORT
     envVars:
