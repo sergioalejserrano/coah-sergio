@@ -194,48 +194,81 @@ select.form-ctrl option{background:var(--s2)}
 </head>
 <body>
 
-<!-- Setup modal -->
+<!-- Setup modal — two clear modes -->
 <div id="pp-modal">
   <div id="pp-box" style="max-width:420px;overflow-y:auto;max-height:92vh">
     <h2>Coach Vegabikes</h2>
-    <p style="font-size:12px;color:var(--t2);margin-bottom:14px">Cada persona usa sus propias credenciales.</p>
-    <div style="background:var(--s2);border-radius:8px;padding:12px;margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin-bottom:8px">Garmin (via proxy)</div>
-      <div class="form-group"><label>Email de Garmin</label><input class="form-ctrl" id="pp-email" type="email" placeholder="tu@email.com" autocomplete="email"></div>
-      <div class="form-group"><label>Contrasena de Garmin</label><input class="form-ctrl" id="pp-password" type="password" autocomplete="current-password"></div>
-      <div class="form-group"><label>URL del proxy <a href="https://render.com" target="_blank" style="color:var(--green);font-weight:400;font-size:10px">(gratis en render.com)</a></label><input class="form-ctrl" id="pp-proxy" type="url" placeholder="https://mi-proxy.onrender.com"></div>
+
+    <!-- Mode selector -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+      <button id="mode-classic-btn" onclick="setSetupMode('classic')"
+        style="padding:10px;border-radius:8px;border:2px solid var(--green);background:var(--green-dim);color:var(--text);font-size:12px;font-weight:700;cursor:pointer">
+        Frase de acceso
+        <div style="font-size:10px;font-weight:400;color:var(--t2);margin-top:2px">garmin.enc</div>
+      </button>
+      <button id="mode-proxy-btn" onclick="setSetupMode('proxy')"
+        style="padding:10px;border-radius:8px;border:2px solid var(--border);background:var(--s2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer">
+        Proxy Garmin
+        <div style="font-size:10px;font-weight:400;color:var(--t3);margin-top:2px">experimental</div>
+      </button>
     </div>
-    <div style="text-align:center;font-size:11px;color:var(--t3);margin-bottom:10px">— o con garmin.enc —</div>
-    <div class="form-group"><label>Frase de descifrado</label><input class="form-ctrl" id="pp-input" type="password" autocomplete="off"></div>
-    <div style="background:var(--s2);border-radius:8px;padding:12px;margin:12px 0">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:8px">Coach IA — OpenRouter o Groq (gratis)</div>
-      <div class="form-group" style="margin-bottom:4px"><label>Groq API Key</label><input class="form-ctrl" id="pp-groq" placeholder="sk-or-... o gsk_..." autocomplete="off"></div>
-      <a href="https://openrouter.ai/keys" target="_blank" style="font-size:11px;color:var(--green)">openrouter.ai</a> <span style="color:var(--t3);font-size:11px">(recomendado, sk-or-...) o</span> <a href="https://console.groq.com/keys" target="_blank" style="font-size:11px;color:var(--t2)">groq.com</a>
-    </div>
-    <div id="pp-err" style="color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px"></div>
-    <button id="pp-btn" class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="tryPassphrase()">Comenzar</button>
-    <details style="cursor:pointer">
-      <summary style="font-size:11px;color:var(--t3);text-align:center;list-style:none;padding:4px">¿Amigos? Ver instrucciones</summary>
-      <div style="background:var(--s3);border-radius:8px;padding:14px;margin-top:10px;font-size:12px;line-height:1.7">
-        <div style="font-weight:700;color:var(--amber);margin-bottom:8px">Setup para amigos (~10 min, gratis)</div>
-        <div style="color:var(--t2)">
-          <b style="color:var(--text)">1.</b> Crea cuenta en <a href="https://github.com/signup" target="_blank" style="color:var(--green)">github.com</a> si no tenes<br>
-          <b style="color:var(--text)">2.</b> <a href="https://github.com/sergioalejserrano/coah-sergio/fork" target="_blank" style="color:var(--green)">Forkea el repositorio</a> (1 clic)<br>
-          <b style="color:var(--text)">3.</b> En tu fork: Settings → Secrets and variables → Actions<br>
-          &nbsp;&nbsp;&nbsp;Agrega 3 secrets:<br>
-          &nbsp;&nbsp;&nbsp;<code style="background:var(--s1);padding:1px 5px;border-radius:3px">GARMIN_EMAIL</code> → tu email de Garmin<br>
-          &nbsp;&nbsp;&nbsp;<code style="background:var(--s1);padding:1px 5px;border-radius:3px">GARMIN_PASSWORD</code> → tu contraseña de Garmin<br>
-          &nbsp;&nbsp;&nbsp;<code style="background:var(--s1);padding:1px 5px;border-radius:3px">DATA_PASSPHRASE</code> → cualquier frase secreta<br>
-          <b style="color:var(--text)">4.</b> Settings → Pages → Source: Deploy from branch → main<br>
-          <b style="color:var(--text)">5.</b> Actions → "Sync Garmin" → Run workflow<br>
-          <b style="color:var(--text)">6.</b> Abre <code style="background:var(--s1);padding:1px 5px">tuusuario.github.io/coah-sergio</code> y usa tu frase<br>
-          <b style="color:var(--text)">7.</b> Para el chat: clave gratis en <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai</a>
+
+    <!-- Classic mode panel -->
+    <div id="panel-classic">
+      <div style="background:var(--s2);border-radius:8px;padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">
+          Modo recomendado. Los datos de Garmin se actualizan automaticamente cada 4h via GitHub Actions.
         </div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--t3);font-size:11px">
-          Por que no funciona con el proxy: Garmin bloquea las IPs de servidores. GitHub Actions usa IPs rotativas que no estan bloqueadas.
+        <div class="form-group"><label>Frase de descifrado</label>
+          <input class="form-ctrl" id="pp-input" type="password" placeholder="Tu frase secreta" autocomplete="off">
         </div>
       </div>
-    </details>
+      <details>
+        <summary style="font-size:11px;color:var(--t3);cursor:pointer;list-style:none;padding:4px 0 10px">
+          ¿Amigos quieren su propia app?
+        </summary>
+        <div style="background:var(--s3);border-radius:8px;padding:12px;font-size:12px;line-height:1.7;color:var(--t2)">
+          <b style="color:var(--amber)">Setup para amigos (~10 min, gratis):</b><br>
+          1. Cuenta en <a href="https://github.com/signup" target="_blank" style="color:var(--green)">github.com</a><br>
+          2. <a href="https://github.com/sergioalejserrano/coah-sergio/fork" target="_blank" style="color:var(--green)">Fork del repo</a> (1 clic)<br>
+          3. Settings → Secrets → Agregar: <code style="background:var(--s1);padding:1px 4px;border-radius:3px">GARMIN_EMAIL</code>, <code style="background:var(--s1);padding:1px 4px;border-radius:3px">GARMIN_PASSWORD</code>, <code style="background:var(--s1);padding:1px 4px;border-radius:3px">DATA_PASSPHRASE</code><br>
+          4. Settings → Pages → branch main<br>
+          5. Actions → Sync Garmin → Run workflow<br>
+          6. Abrir <code style="background:var(--s1);padding:1px 4px;border-radius:3px">usuario.github.io/coah-sergio</code>
+        </div>
+      </details>
+    </div>
+
+    <!-- Proxy mode panel (hidden by default) -->
+    <div id="panel-proxy" style="display:none">
+      <div style="background:#1a0800;border:1px solid #6b3a00;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--amber)">
+        ⚠ Garmin bloquea IPs de servidores. Este modo puede fallar con error 429. Se recomienda el modo Frase.
+      </div>
+      <div class="form-group"><label>Email de Garmin</label>
+        <input class="form-ctrl" id="pp-email" type="email" placeholder="tu@email.com" autocomplete="email">
+      </div>
+      <div class="form-group"><label>Contrasena de Garmin</label>
+        <input class="form-ctrl" id="pp-password" type="password" autocomplete="current-password">
+      </div>
+      <div class="form-group"><label>URL del proxy</label>
+        <input class="form-ctrl" id="pp-proxy" type="url" placeholder="https://mi-proxy.onrender.com">
+      </div>
+    </div>
+
+    <!-- Groq key (always visible) -->
+    <div style="background:var(--s2);border-radius:8px;padding:12px;margin:12px 0">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:8px">Coach IA — OpenRouter o Groq (gratis)</div>
+      <div class="form-group" style="margin-bottom:4px">
+        <label>API Key</label>
+        <input class="form-ctrl" id="pp-groq" placeholder="sk-or-... o gsk_..." autocomplete="off">
+      </div>
+      <a href="https://openrouter.ai/keys" target="_blank" style="font-size:11px;color:var(--green)">openrouter.ai</a>
+      <span style="color:var(--t3);font-size:11px"> (recomendado) o </span>
+      <a href="https://console.groq.com/keys" target="_blank" style="font-size:11px;color:var(--t2)">groq.com</a>
+    </div>
+
+    <div id="pp-err" style="color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px"></div>
+    <button id="pp-btn" class="btn btn-primary" style="width:100%" onclick="tryPassphrase()">Comenzar</button>
   </div>
 </div>
 
@@ -701,15 +734,39 @@ async function tryPassphrase(){
   const err=q('#pp-err'),btn=q('#pp-btn');
   err.textContent='';btn.textContent='Verificando...';btn.disabled=true;
   try{
-    const em=(q('#pp-email')?.value||'').trim(),pw=q('#pp-password')?.value||'',
-          purl=(q('#pp-proxy')?.value||'').trim(),groq=(q('#pp-groq')?.value||'').trim(),
-          phrase=(q('#pp-input')?.value||'').trim();
+    const groq=(q('#pp-groq')?.value||'').trim();
     if(groq) localStorage.setItem('groq_key',groq);
-    if(em&&pw&&purl){localStorage.setItem('garmin_email',em);localStorage.setItem('garmin_pwd',pw);localStorage.setItem('proxy_url',purl);}
-    else if(phrase&&!phrase.startsWith('(guardada')){localStorage.setItem(PP_KEY,phrase);pp=phrase;}
-    else if(!phrase&&localStorage.getItem(PP_KEY)){pp=localStorage.getItem(PP_KEY);/* keep existing */}
-    else throw new Error('Ingresa credenciales+proxy o frase de descifrado');
-    gData=await loadGarminData();q('#pp-modal').style.display='none';renderAll();
+
+    const mode=localStorage.getItem('setup_mode')||'classic';
+
+    if(mode==='proxy'){
+      // Proxy mode: need email + password + proxy URL
+      const em=(q('#pp-email')?.value||'').trim();
+      const pw=q('#pp-password')?.value||'';
+      const purl=(q('#pp-proxy')?.value||'').trim();
+      if(!em||!pw||!purl) throw new Error('Para modo proxy ingresá email, contrasena y URL del proxy');
+      localStorage.setItem('garmin_email',em);
+      localStorage.setItem('garmin_pwd',pw);
+      localStorage.setItem('proxy_url',purl);
+    } else {
+      // Classic mode: need passphrase
+      const phrase=(q('#pp-input')?.value||'').trim();
+      if(phrase){
+        localStorage.setItem(PP_KEY,phrase);pp=phrase;
+      } else if(localStorage.getItem(PP_KEY)){
+        pp=localStorage.getItem(PP_KEY); // use saved
+      } else {
+        throw new Error('Ingresá tu frase de descifrado');
+      }
+      // Clear any stale proxy settings to avoid confusion
+      localStorage.removeItem('garmin_email');
+      localStorage.removeItem('garmin_pwd');
+      localStorage.removeItem('proxy_url');
+    }
+
+    gData=await loadGarminData();
+    q('#pp-modal').style.display='none';
+    renderAll();
   }catch(e){err.textContent=e.message||'Error';}
   finally{btn.textContent='Comenzar';btn.disabled=false;}
 }
@@ -782,15 +839,33 @@ const PROFILE={
 // ═══════════════════════════════════════════════════════════════
 // SESSION RECOMMENDATION
 // ═══════════════════════════════════════════════════════════════
+function setSetupMode(mode){
+  const isProxy=mode==='proxy';
+  q('#panel-classic').style.display=isProxy?'none':'block';
+  q('#panel-proxy').style.display=isProxy?'block':'none';
+  const cb=q('#mode-classic-btn'),pb=q('#mode-proxy-btn');
+  if(cb){cb.style.borderColor=isProxy?'var(--border)':'var(--green)';cb.style.background=isProxy?'var(--s2)':'var(--green-dim)';cb.style.color=isProxy?'var(--t2)':'var(--text)';}
+  if(pb){pb.style.borderColor=isProxy?'var(--amber)':'var(--border)';pb.style.background=isProxy?'var(--s2)':'var(--s2)';pb.style.color=isProxy?'var(--text)':'var(--t2)';}
+  localStorage.setItem('setup_mode',mode);
+}
 function openSettings(){
   const f=id=>q('#pp-'+id);
+  // Determine mode: if proxy was previously configured, show proxy; else classic
+  const hasProxy=localStorage.getItem('proxy_url')&&localStorage.getItem('garmin_email');
+  const savedMode=localStorage.getItem('setup_mode')||( hasProxy?'proxy':'classic');
+  setSetupMode(savedMode);
   if(f('email'))f('email').value=localStorage.getItem('garmin_email')||'';
   if(f('password'))f('password').value='';
   if(f('proxy'))f('proxy').value=localStorage.getItem('proxy_url')||'';
   if(f('groq'))f('groq').value=localStorage.getItem('groq_key')||'';
-  // Pre-fill passphrase hint if in classic mode
   const savedPP=localStorage.getItem(PP_KEY);
-  if(f('input'))f('input').value=savedPP?'(guardada — borrala para cambiar)':'';
+  if(f('input'))f('input').value='';
+  if(savedPP&&savedMode==='classic'){
+    if(q('#pp-err'))q('#pp-err').textContent='';
+    // Hint that passphrase is saved
+    const hint=q('#pp-input');
+    if(hint) hint.placeholder='Guardada. Dejá vacío para mantener.';
+  }
   if(q('#pp-err'))q('#pp-err').textContent='';
   q('#pp-modal').style.display='flex';
 }
@@ -1873,8 +1948,20 @@ function buildStatsGrid(gData){
 async function init(){
   const hasProxy=localStorage.getItem('proxy_url')&&localStorage.getItem('garmin_email');
   const hasEnc=localStorage.getItem(PP_KEY);
-  if(hasProxy||hasEnc){try{gData=await loadGarminData();q('#pp-modal').style.display='none';renderAll();}catch(e){q('#pp-modal').style.display='flex';}}
-  else q('#pp-modal').style.display='flex';
+  // Set default mode based on what's configured
+  if(!localStorage.getItem('setup_mode')){
+    localStorage.setItem('setup_mode', hasEnc?'classic':(hasProxy?'proxy':'classic'));
+  }
+  if(hasProxy||hasEnc){
+    try{gData=await loadGarminData();q('#pp-modal').style.display='none';renderAll();}
+    catch(e){
+      q('#pp-modal').style.display='flex';
+      setSetupMode(localStorage.getItem('setup_mode')||'classic');
+    }
+  } else {
+    q('#pp-modal').style.display='flex';
+    setSetupMode('classic');
+  }
 }
 
 init();
