@@ -194,14 +194,26 @@ select.form-ctrl option{background:var(--s2)}
 </head>
 <body>
 
-<!-- Passphrase modal -->
+<!-- Setup modal -->
 <div id="pp-modal">
-  <div id="pp-box">
+  <div id="pp-box" style="max-width:420px;overflow-y:auto;max-height:92vh">
     <h2>Coach Vegabikes</h2>
-    <p>Ingresa tu frase de descifrado para acceder a los datos de Garmin.</p>
-    <input id="pp-input" type="password" placeholder="Frase de descifrado" autocomplete="off">
-    <div id="pp-err"></div>
-    <button id="pp-btn" onclick="tryPassphrase()">Acceder</button>
+    <p style="font-size:12px;color:var(--t2);margin-bottom:14px">Cada persona usa sus propias credenciales.</p>
+    <div style="background:var(--s2);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin-bottom:8px">Garmin (via proxy)</div>
+      <div class="form-group"><label>Email de Garmin</label><input class="form-ctrl" id="pp-email" type="email" placeholder="tu@email.com" autocomplete="email"></div>
+      <div class="form-group"><label>Contrasena de Garmin</label><input class="form-ctrl" id="pp-password" type="password" autocomplete="current-password"></div>
+      <div class="form-group"><label>URL del proxy <a href="https://render.com" target="_blank" style="color:var(--green);font-weight:400;font-size:10px">(gratis en render.com)</a></label><input class="form-ctrl" id="pp-proxy" type="url" placeholder="https://mi-proxy.onrender.com"></div>
+    </div>
+    <div style="text-align:center;font-size:11px;color:var(--t3);margin-bottom:10px">— o con garmin.enc —</div>
+    <div class="form-group"><label>Frase de descifrado</label><input class="form-ctrl" id="pp-input" type="password" autocomplete="off"></div>
+    <div style="background:var(--s2);border-radius:8px;padding:12px;margin:12px 0">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:8px">Coach IA — Groq (gratis)</div>
+      <div class="form-group" style="margin-bottom:4px"><label>Groq API Key</label><input class="form-ctrl" id="pp-groq" placeholder="gsk_..." autocomplete="off"></div>
+      <a href="https://console.groq.com/keys" target="_blank" style="font-size:11px;color:var(--green)">Obtene clave gratis en groq.com →</a>
+    </div>
+    <div id="pp-err" style="color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px"></div>
+    <button id="pp-btn" class="btn btn-primary" style="width:100%" onclick="tryPassphrase()">Comenzar</button>
   </div>
 </div>
 
@@ -328,6 +340,7 @@ select.form-ctrl option{background:var(--s2)}
     <span style="margin-left:auto;cursor:pointer;color:var(--t3)" onclick="refreshData()">&#8635;</span>
   </div>
 
+  <div style="margin-bottom:10px"><button onclick="setSkipToday(!getSkipToday())" id="skip-btn" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;text-align:left;color:var(--t2)"><span id="skip-icon">&#9711;</span> No puedo entrenar hoy</button></div>
   <!-- Session recommendation -->
   <div class="card" id="session-card" style="border-color:var(--border2)">
     <div class="label" style="margin-bottom:8px">Sesion de hoy</div>
@@ -621,36 +634,32 @@ function getIx(){return JSON.parse(localStorage.getItem(IX_KEY)||JSON.stringify(
 // ═══════════════════════════════════════════════════════════════
 // DATA LOADING
 // ═══════════════════════════════════════════════════════════════
-async function loadGarminData(passphrase){
-  // cache-busting prevents stale CDN + browser cache
-  const v='?v='+Date.now();
-  const res=await fetch('data/garmin.enc'+v,{cache:'no-store'});
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  const b64=await res.text();
-  return decryptData(b64.trim(), passphrase);
+async function loadGarminData(){
+  const purl=localStorage.getItem('proxy_url'),em=localStorage.getItem('garmin_email'),pw=localStorage.getItem('garmin_pwd');
+  if(purl&&em&&pw){
+    const r=await fetch(purl.replace(/\/$/,'')+'/data?v='+Date.now(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
+    if(!r.ok)throw new Error('Proxy HTTP '+r.status);const j=await r.json();if(!j.success)throw new Error(j.detail||j.error||'Proxy error');return j.payload;
+  }
+  const sp=localStorage.getItem(PP_KEY);if(!sp)throw new Error('Sin credenciales');
+  const res=await fetch('data/garmin.enc?v='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);
+  return decryptData((await res.text()).trim(),sp);
 }
+// enc fallback handled in loadGarminData
 
 async function tryPassphrase(){
-  const input=q('#pp-input');
-  const err=q('#pp-err');
-  const btn=q('#pp-btn');
-  err.textContent='';
-  btn.textContent='Verificando...';
-  btn.disabled=true;
+  const err=q('#pp-err'),btn=q('#pp-btn');
+  err.textContent='';btn.textContent='Verificando...';btn.disabled=true;
   try{
-    const data=await loadGarminData(input.value.trim());
-    pp=input.value.trim();
-    localStorage.setItem(PP_KEY,pp);
-    gData=data;
-    q('#pp-modal').style.display='none';
-    renderAll();
-  }catch(e){
-    err.textContent='Frase incorrecta o datos corruptos';
-    input.select();
-  }finally{
-    btn.textContent='Acceder';
-    btn.disabled=false;
-  }
+    const em=(q('#pp-email')?.value||'').trim(),pw=q('#pp-password')?.value||'',
+          purl=(q('#pp-proxy')?.value||'').trim(),groq=(q('#pp-groq')?.value||'').trim(),
+          phrase=(q('#pp-input')?.value||'').trim();
+    if(groq) localStorage.setItem('groq_key',groq);
+    if(em&&pw&&purl){localStorage.setItem('garmin_email',em);localStorage.setItem('garmin_pwd',pw);localStorage.setItem('proxy_url',purl);}
+    else if(phrase){localStorage.setItem(PP_KEY,phrase);pp=phrase;}
+    else throw new Error('Ingresa credenciales+proxy o frase de descifrado');
+    gData=await loadGarminData();q('#pp-modal').style.display='none';renderAll();
+  }catch(e){err.textContent=e.message||'Error';}
+  finally{btn.textContent='Comenzar';btn.disabled=false;}
 }
 
 async function refreshData(){
@@ -721,6 +730,18 @@ const PROFILE={
 // ═══════════════════════════════════════════════════════════════
 // SESSION RECOMMENDATION
 // ═══════════════════════════════════════════════════════════════
+function openSettings(){
+  const f=id=>q('#pp-'+id);
+  if(f('email'))f('email').value=localStorage.getItem('garmin_email')||'';
+  if(f('password'))f('password').value='';
+  if(f('proxy'))f('proxy').value=localStorage.getItem('proxy_url')||'';
+  if(f('groq'))f('groq').value=localStorage.getItem('groq_key')||'';
+  if(f('input'))f('input').value='';
+  if(q('#pp-err'))q('#pp-err').textContent='';
+  q('#pp-modal').style.display='flex';
+}
+function getSkipToday(){const t=new Date().toISOString().split('T')[0];return localStorage.getItem('skip_'+t)==='1';}
+function setSkipToday(v){const t=new Date().toISOString().split('T')[0];if(v)localStorage.setItem('skip_'+t,'1');else localStorage.removeItem('skip_'+t);renderAll();}
 function getOfficeDays(){try{return JSON.parse(localStorage.getItem('office_days')||'[2]');}catch(_){return[2];}}
 function setOfficeDays(arr){localStorage.setItem('office_days',JSON.stringify(arr));}
 function toggleOfficeDay(i){const od=getOfficeDays(),x=od.indexOf(i);if(x>=0)od.splice(x,1);else od.push(i);setOfficeDays(od);renderSalud();renderPlan();renderComida();}
@@ -729,6 +750,7 @@ function getSession(gData, dayOfWeek){
   const phase=getCurrentPhase();
 
   // Martes: descanso fijo (oficina)
+  if(dayOfWeek===new Date().getDay()&&getSkipToday()) return {dot:'rest',title:'No entreno hoy',desc:'Marcado manualmente.',duration:0,device:''};
   if(getOfficeDays().includes(dayOfWeek)) return {dot:'rest',title:'Descanso (oficina)',desc:'Dia de oficina. Sin entreno. Caminata 20min si queres.',duration:0,device:''};
   // Sabado: Vegabikes siempre
   if(dayOfWeek===6) return {dot:'race',title:'Vegabikes Grupeta',desc:'Salida fija 6:00am. Variable segun lo que decida el grupo.',duration:180,device:'Edge 1040'};
@@ -843,6 +865,8 @@ function renderHoy(){
     q('#readiness-gauge').innerHTML=renderGauge(0);
     return;
   }
+  const sb=q('#skip-btn'),si=q('#skip-icon');
+  if(sb){const sk=getSkipToday();sb.style.background=sk?'var(--green-dim)':'var(--s1)';sb.style.borderColor=sk?'var(--green)':'var(--border)';sb.style.color=sk?'var(--green)':'var(--t2)';if(si)si.textContent=sk?'\u2713':'\u25ef';}
   const ts=gData.ts;
   const syncTxt=q('#sync-txt');
   syncTxt.textContent='Sincronizado: '+relTime(ts);
@@ -1020,6 +1044,16 @@ function renderPlan(){
   ].join('');
 }
 
+function getDayStrength(dow){
+  const wrm='<div class="label" style="margin-bottom:6px;margin-top:14px">Calentamiento (6-8 min)</div><div style="font-size:12px;color:var(--t2);line-height:1.8">Circulos de cadera x10 - Sentadilla profunda x10 - Estocada dinamica x8c/lado - Puente gluteos x15 - Rotacion toracica x8c/lado - Brazos x10</div>';
+  const st2='<div class="label" style="margin-bottom:6px;margin-top:14px">Estiramiento (15-20 min)</div><div style="font-size:12px;color:var(--t2);line-height:1.8">Piriforme (figura 4) - Flexor cadera en estocada - Cuadriceps de pie - Isquiotibiales sentado - Rotacion columna - Pecho y hombros - Cuello lateral - Lumbar (rodillas al pecho)</div>';
+  const fza='<div class="label" style="margin-bottom:6px;margin-top:14px">Fuerza (30-40 min)</div>'+['Sentadilla goblet 3x12','Hip thrust 3x15','Peso muerto rumano 3x10','Prensa unilateral 3x12c/l','Plancha lateral 3x45s','Superman 3x15','Pallof press 3x12','Nordic curl 3x8'].map(e=>'<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">'+e+'</div>').join('');
+  if(getOfficeDays().includes(dow)||(dow===new Date().getDay()&&getSkipToday()))return '';
+  if(dow===6)return '<div class="divider"></div>'+st2;
+  if(dow===0||dow===1||dow===4)return '<div class="divider"></div>'+wrm+st2;
+  if(dow===3||dow===5)return '<div class="divider"></div>'+wrm+fza+st2;
+  return '';
+}
 function getSleepRec(dow){
   if(dow===1) return "7-7.5h disponibles hoy. Baile termina 10pm, llegada a casa ~11pm. Dormite apenas puedas.";
   if(dow===6) return "7.5-8h. Vegabikes sale 6am, acostate antes de las 10:30pm.";
@@ -1042,10 +1076,27 @@ function downloadTCX(){
 }
 function getOutdoorDesc(sess){
   const ph=getCurrentPhase().name;
-  if(sess.dot==='race') return 'Grupeta Vegabikes 6:00am. Rueda con el grupo, disfrutalo. No te quemes en las subidas.';
-  if(sess.dot==='quality') return 'Salida estructurada. Calentamiento 15min Z2, ejecuta los intervalos en tramo plano. Cadencia 88-95rpm. Edge 1040 en modo intervalo.';
-  if(ph==='Recuperacion') return 'Z1-Z2 ruta plana. Cartago-Dulce Nombre o similar. FC max 135bpm. Sin zonas grises. 45-75min.';
-  return 'Z2 exterior. Ruta limpia de trafico. FC 120-139bpm. Cadencia 85-90rpm. 1-2 bidones + gel si supera 90min.';
+  if(sess.dot==='race')
+    return renderIntervals([{n:'Grupeta Vegabikes',d:'Variable',w:'Rueda con el grupo',z:'Social',c:'#22c55e'}])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Salida 6am - No te quemes en subidas - Disfrutalo</div>';
+  if(sess.dot==='quality')
+    return renderIntervals([
+      {n:'Calentamiento Z2',d:'15 min',w:'FC < 140 bpm',z:'Z2',c:'#60a5fa'},
+      {n:'Intervalo 1/4 - tramo plano',d:'8 min',w:'FC 162-178 bpm',z:'Z4',c:'#fb923c'},
+      {n:'Recuperacion activa',d:'4 min',w:'FC < 130',z:'Z1',c:'#60a5fa'},
+      {n:'Intervalo 2/4',d:'8 min',w:'FC 162-178 bpm',z:'Z4',c:'#fb923c'},
+      {n:'Recuperacion activa',d:'4 min',w:'FC < 130',z:'Z1',c:'#60a5fa'},
+      {n:'Intervalo 3/4',d:'8 min',w:'FC 162-178 bpm',z:'Z4',c:'#fb923c'},
+      {n:'Recuperacion activa',d:'4 min',w:'FC < 130',z:'Z1',c:'#60a5fa'},
+      {n:'Intervalo 4/4',d:'8 min',w:'FC 162-178 bpm',z:'Z4',c:'#fb923c'},
+      {n:'Vuelta a calma',d:'15 min',w:'FC < 130',z:'Z2',c:'#60a5fa'},
+    ])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Cadencia 88-95 rpm - Edge 1040 modo intervalo - 2 bidones</div>';
+  if(ph==='Recuperacion')
+    return renderIntervals([{n:'Z1/Z2 estricto',d:'45-75 min',w:'FC < 135 bpm',z:'Z1-Z2',c:'#60a5fa'}])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Ruta plana - Sin zonas grises</div>';
+  return renderIntervals([
+    {n:'Calentamiento',d:'10 min',w:'FC < 120',z:'Z1',c:'#60a5fa'},
+    {n:'Bloque Z2',d:'40-50 min',w:'FC 120-139 bpm',z:'Z2',c:'#22c55e'},
+    {n:'Vuelta a calma',d:'5-10 min',w:'FC < 120',z:'Z1',c:'#60a5fa'},
+  ])+'<div style="font-size:11px;color:var(--t3);margin-top:8px">Cadencia 85-90 rpm - 1-2 bidones</div>';
 }
 function renderIntervals(steps){
   return steps.map(s=>'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="width:4px;height:36px;background:'+s.c+';border-radius:2px;flex-shrink:0"></div><div style="flex:1"><div style="font-size:12px;font-weight:600">'+s.n+'</div><div style="font-size:11px;color:var(--t2)">'+s.d+' - '+s.w+'</div></div><div style="font-size:10px;font-weight:700;color:'+s.c+';min-width:54px;text-align:right">'+s.z+'</div></div>').join('');
@@ -1113,7 +1164,7 @@ function openDaySheet(weekIdx){
       <button id="btn-kickr" onclick="toggleMode('kickr')" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--t2);cursor:pointer;font-size:12px;font-weight:700">KICKR Indoor<br><span style="font-weight:400;font-size:10px">KICKR CORE</span></button>
     </div>
     <div id="mode-exterior" class="card-sm" style="margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(getOutdoorDesc(sess))}</div>
-    <div id="mode-kickr" style="display:none"><div class="card-sm" style="margin-bottom:8px">${getKickrDesc(sess)}</div><button onclick="downloadTCX()" style="width:100%;margin-top:2px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;color:var(--t2);cursor:pointer">Descargar entrenamiento para Garmin Connect (.tcx)</button></div>
+    <div id="mode-kickr" style="display:none"><div class="card-sm" style="margin-bottom:8px">${getKickrDesc(sess)}</div><button onclick="pushWorkoutToGarmin()" style="width:100%;margin-top:6px;background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;font-weight:600">Enviar a Garmin Connect (aparece en tu Edge)</button></div>
     `:`<div class="card-sm" style="margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--t2)">${esc(sess.desc)}</div>`}
     `:'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Dia de descanso. Aprovecha para recuperar y dorme bien.</div>'}
 
@@ -1127,6 +1178,8 @@ function openDaySheet(weekIdx){
     </div>
     <div style="font-size:12px;color:var(--t2);text-align:right;margin-bottom:14px">~${ixData.kcal} kcal</div>
 
+    ${getDayStrength(dow)}
+    <div class="divider"></div>
     <div class="label" style="margin-bottom:8px">Sueno recomendado</div>
     <div style="font-size:13px;color:var(--t2)">${getSleepRec(dow)}</div>
     <div style="height:40px"></div>
@@ -1451,7 +1504,7 @@ function initCoach(){
     q('#puter-status').textContent='Conectando con Claude...';
     setTimeout(()=>{
       if(typeof puter!=='undefined'){puterReady=true;q('#puter-status').style.display='none';}
-      else q('#puter-status').textContent='Coach IA: inicia sesion en puter.com una vez.';
+      else{const ps2=q('#puter-status');if(ps2)ps2.innerHTML='Agrega Groq API key en <a href="https://console.groq.com/keys" target="_blank" style="color:var(--green)">groq.com</a> (gratis) via Ajustes.';}
     },3000);
   }
 
@@ -1518,6 +1571,20 @@ function addMsg(role,text){
   return div;
 }
 
+async function callGroq(msgs,vis=false){
+  const k=localStorage.getItem('groq_key');if(!k)throw new Error('Agrega tu Groq API key en Ajustes (groq.com es gratis)');
+  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+k,'Content-Type':'application/json'},body:JSON.stringify({model:vis?'llama-3.2-11b-vision-preview':'llama-3.3-70b-versatile',messages:msgs,max_tokens:1500,temperature:0.7})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'Groq error '+r.status);}
+  return (await r.json()).choices[0].message.content;
+}
+async function extractPDFText(b64){
+  const {getDocument,GlobalWorkerOptions}=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+  GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+  const d=atob(b64),a=new Uint8Array(d.length);for(let i=0;i<d.length;i++)a[i]=d.charCodeAt(i);
+  const pdf=await getDocument({data:a}).promise;let t='';
+  for(let i=1;i<=Math.min(pdf.numPages,8);i++){const p=await pdf.getPage(i);const c=await p.getTextContent();t+=c.items.map(x=>x.str).join(' ')+'\n';}
+  return t.slice(0,6000);
+}
 function extractReply(r){
   if(!r) return 'Sin respuesta';
   if(typeof r==='string') return r;
@@ -1542,8 +1609,8 @@ async function sendMsg(){
   typing.classList.add('typing');
   try{
     const messages=buildCoachMessages();
-    const resp=await puter.ai.chat(messages,{model:'claude-sonnet-4-6'});
-    const reply=extractReply(resp);
+    const groqMsgs=messages.map(m=>({role:m.role,content:typeof m.content==='string'?m.content:JSON.stringify(m.content)}));
+    const reply=await callGroq(groqMsgs);
     typing.classList.remove('typing');
     typing.textContent=reply;
     chatHistory.push({role:'assistant',content:reply});
@@ -1589,7 +1656,7 @@ function renderAll(){
 // ═══════════════════════════════════════════════════════════════
 let _aiMode='';
 function uploadAIFile(mode){
-  if(typeof puter==='undefined'){alert('Conecta el Coach IA primero (pestana Coach).');return;}
+  if(!localStorage.getItem('groq_key')){alert('Agrega tu Groq API key en Ajustes (groq.com es gratis).');return;}
   _aiMode=mode;
   q('#ai-file-input').click();
 }
@@ -1602,27 +1669,16 @@ async function processAIFile(evt){
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
     const mime=file.type||'image/jpeg';
     const isPDF=mime==='application/pdf';
+    const pi='Extrae datos InBody. Responde SOLO JSON sin backticks: {"date":"YYYY-MM-DD","weight":X.X,"muscle":X.X,"fat":X.X,"tmb":X}. null si no lees.';
+    const pl='Extrae examenes de laboratorio. Formato: EXAMEN: valor unidad (rango). Un examen por linea. Solo datos.';
+    const pm=_aiMode==='inbody'?pi:pl;
+    let txt='';
+    if(isPDF){st.textContent='Extrayendo texto del PDF...';const pdfTxt=await extractPDFText(b64);st.textContent='Analizando...';txt=await callGroq([{role:'user',content:pm+'\n\nTexto:\n'+pdfTxt}]);}
+    else{st.textContent='Analizando imagen...';txt=await callGroq([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:pm}]}],true);}
     if(_aiMode==='inbody'){
-      st.textContent='Extrayendo datos InBody...';
-      const prompt='Extrae estos datos de este reporte InBody y responde SOLO con JSON sin backticks: {"date":"YYYY-MM-DD","weight":X.X,"muscle":X.X,"fat":X.X,"tmb":X}. Usa null si no podes leer un valor.';
-      const resp=await puter.ai.chat([{role:'user',content:[(isPDF?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:mime,data:b64}}),{type:'text',text:prompt}]}],{model:'claude-sonnet-4-6'});
-      const txt=extractReply(resp);
-      let parsed; try{const m=txt.match(/\{[^}]+\}/);parsed=JSON.parse(m?m[0]:txt);}catch(_){throw new Error('No se pudo leer el reporte. Intenta con mejor iluminacion.');}
-      ov.style.display='none';
-      q('#ib-date').value=parsed.date||new Date().toISOString().split('T')[0];
-      q('#ib-weight').value=parsed.weight||'';q('#ib-muscle').value=parsed.muscle||'';q('#ib-fat').value=parsed.fat||'';q('#ib-tmb').value=parsed.tmb||'';
-      q('#ib-modal').classList.add('open');
-    } else {
-      st.textContent='Extrayendo resultados de laboratorio...';
-      const prompt='Extrae todos los examenes de laboratorio de esta imagen. Formato: EXAMEN: valor unidad (rango referencia). Un examen por linea. Solo datos, sin introduccion ni conclusion.';
-      const resp=await puter.ai.chat([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:prompt}]}],{model:'claude-sonnet-4-6'});
-      const txt=extractReply(resp);
-      localStorage.setItem('labs_extracted',txt);
-      localStorage.setItem('labs_date',new Date().toISOString().split('T')[0]);
-      ov.style.display='none';
-      renderSalud();
-      alert('Examenes guardados. El coach ahora los tiene disponibles.');
-    }
+      let parsed;try{const m=txt.match(/\{[^{}]+\}/);parsed=JSON.parse(m?m[0]:txt.trim());}catch(_){throw new Error('No se pudo parsear. Foto mas clara o PDF con texto seleccionable.');}
+      ov.style.display='none';q('#ib-date').value=parsed.date||new Date().toISOString().split('T')[0];q('#ib-weight').value=parsed.weight||'';q('#ib-muscle').value=parsed.muscle||'';q('#ib-fat').value=parsed.fat||'';q('#ib-tmb').value=parsed.tmb||'';q('#ib-modal').classList.add('open');
+    } else {localStorage.setItem('labs_extracted',txt);localStorage.setItem('labs_date',new Date().toISOString().split('T')[0]);ov.style.display='none';renderSalud();alert('Examenes guardados.');}
   }catch(err){ov.style.display='none';alert('Error: '+err.message);}
 }
 
@@ -1726,25 +1782,14 @@ function buildStatsGrid(gData){
 // INIT
 // ═══════════════════════════════════════════════════════════════
 async function init(){
-  const saved=localStorage.getItem(PP_KEY);
-  if(saved){
-    pp=saved;
-    try{
-      gData=await loadGarminData(pp);
-      q('#pp-modal').style.display='none';
-      renderAll();
-    }catch(e){
-      // Wrong passphrase or network error — show modal
-      q('#pp-modal').style.display='flex';
-      renderAll(); // render with no data
-    }
-  } else {
-    q('#pp-modal').style.display='flex';
-  }
+  const hasProxy=localStorage.getItem('proxy_url')&&localStorage.getItem('garmin_email');
+  const hasEnc=localStorage.getItem(PP_KEY);
+  if(hasProxy||hasEnc){try{gData=await loadGarminData();q('#pp-modal').style.display='none';renderAll();}catch(e){q('#pp-modal').style.display='flex';}}
+  else q('#pp-modal').style.display='flex';
 }
 
 init();
 </script>
-<script src="https://js.puter.com/v2/" async defer onload="puterReady=true;if(document.getElementById('puter-status'))document.getElementById('puter-status').style.display='none'"></script>
+<script>/* puter removed — groq */</script>
 </body>
 </html>
