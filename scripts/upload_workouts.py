@@ -33,7 +33,7 @@ def hr_step(name, minutes, lo, hi, kind="interval"):
 def workout(name, steps):
     return {
         "workoutName": name,
-        "sport": {"sportTypeId": 2, "sportTypeKey": "cycling"},
+        "sportType": {"sportTypeId": 2, "sportTypeKey": "cycling"},
         "workoutSegments": [{
             "segmentOrder": 1,
             "sportType": {"sportTypeId": 2, "sportTypeKey": "cycling"},
@@ -102,10 +102,13 @@ def build_from_inputs():
 
 def upload_and_schedule(g, wo, date_iso):
     # Crea el workout y lo agenda en la fecha (aparece en reloj y Edge).
-    created = g.garth.connectapi("/workout-service/workout", method="POST", json=wo)
-    wid = created.get("workoutId")
-    g.garth.connectapi(f"/workout-service/schedule/{wid}", method="POST",
-                       json={"date": date_iso})
+    # Usamos los métodos de alto nivel de garminconnect (el objeto Garmin no
+    # expone .garth; el cliente interno es .client).
+    created = g.upload_workout(wo)
+    wid = (created or {}).get("workoutId")
+    if not wid:
+        raise RuntimeError(f"upload_workout no devolvió workoutId: {created!r}")
+    g.schedule_workout(wid, date_iso)
     return wid
 
 
