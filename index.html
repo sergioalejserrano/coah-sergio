@@ -337,7 +337,8 @@ select.form-ctrl option{background:var(--s2)}
   <div id="sync-chip">
     <div id="sync-dot"></div>
     <span id="sync-txt">Cargando datos...</span>
-    <span style="margin-left:auto;cursor:pointer;color:var(--t3)" onclick="refreshData()">&#8635;</span>
+    <span style="cursor:pointer;color:var(--t3);font-size:13px;margin-left:auto" onclick="refreshData()" title="Actualizar datos Garmin">&#8635;</span>
+    <span style="cursor:pointer;color:var(--t3);font-size:13px;margin-left:8px" onclick="openSettings()" title="Ajustes">&#9881;</span>
   </div>
 
   <div style="margin-bottom:10px"><button onclick="setSkipToday(!getSkipToday())" id="skip-btn" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;text-align:left;color:var(--t2)"><span id="skip-icon">&#9711;</span> No puedo entrenar hoy</button></div>
@@ -392,21 +393,44 @@ select.form-ctrl option{background:var(--s2)}
 
 <!-- PLAN TAB -->
 <section class="tab" id="tab-plan">
-  <div class="card" id="tomorrow-card" style="border-color:var(--border2);margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div class="label">Manana</div>
-      <div style="font-size:11px;color:var(--t2)" id="tomorrow-date"></div>
-    </div>
-    <div id="tomorrow-session"></div>
+
+  <!-- HOY (sesion expandida) -->
+  <div id="plan-today-card" class="card" style="margin-bottom:10px"></div>
+
+  <!-- Skip toggle -->
+  <div style="margin-bottom:10px">
+    <button onclick="setSkipToday(!getSkipToday())" id="plan-skip-btn" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;text-align:left;color:var(--t2)">
+      <span id="plan-skip-icon">&#9711;</span> No puedo entrenar hoy
+    </button>
   </div>
-  <div style="margin-bottom:14px">
+
+  <!-- Fase + countdown -->
+  <div style="margin-bottom:12px">
     <div id="phase-banner" class="phase-banner"></div>
     <div id="race-countdown" style="font-size:12px;color:var(--t2);margin-top:6px"></div>
   </div>
 
-  <div class="label" style="margin-bottom:8px">Esta semana</div>
+  <!-- Proximos 7 dias -->
+  <div class="label" style="margin-bottom:8px">Proximos 7 dias</div>
   <div class="week-row" id="week-row"></div>
 
+  <!-- Dias de oficina -->
+  <div class="card" style="margin-bottom:10px">
+    <div class="label" style="margin-bottom:10px">Dias de oficina (sin entreno)</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="office-grid-plan"></div>
+    <div style="font-size:11px;color:var(--t3);margin-top:8px">Toca para activar/desactivar</div>
+  </div>
+
+  <!-- Carreras -->
+  <div class="card" style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="label">Carreras</div>
+      <button class="btn btn-primary btn-sm" onclick="openRaceModal()">+ Agregar</button>
+    </div>
+    <div id="plan-races-list"></div>
+  </div>
+
+  <!-- Fuerza / Calentamiento / Estiramiento -->
   <div class="card" style="padding:0 16px">
     <div id="collap-plan"></div>
   </div>
@@ -665,7 +689,7 @@ async function tryPassphrase(){
 async function refreshData(){
   q('#sync-txt').textContent='Actualizando...';
   try{
-    gData=await loadGarminData(pp);
+    gData=await loadGarminData();
     renderAll();
   }catch(e){
     q('#sync-txt').textContent='Error al actualizar';
@@ -744,7 +768,7 @@ function getSkipToday(){const t=new Date().toISOString().split('T')[0];return lo
 function setSkipToday(v){const t=new Date().toISOString().split('T')[0];if(v)localStorage.setItem('skip_'+t,'1');else localStorage.removeItem('skip_'+t);renderAll();}
 function getOfficeDays(){try{return JSON.parse(localStorage.getItem('office_days')||'[2]');}catch(_){return[2];}}
 function setOfficeDays(arr){localStorage.setItem('office_days',JSON.stringify(arr));}
-function toggleOfficeDay(i){const od=getOfficeDays(),x=od.indexOf(i);if(x>=0)od.splice(x,1);else od.push(i);setOfficeDays(od);renderSalud();renderPlan();renderComida();}
+function toggleOfficeDay(i){const od=getOfficeDays(),x=od.indexOf(i);if(x>=0)od.splice(x,1);else od.push(i);setOfficeDays(od);renderPlan();renderComida();renderSalud();}
 function getSession(gData, dayOfWeek){
   const rd=gData?.readiness||0, rec=gData?.recovery||0, bb=gData?.bb||0;
   const phase=getCurrentPhase();
@@ -930,10 +954,11 @@ function renderHoy(){
 // ═══════════════════════════════════════════════════════════════
 function getWeekDays(){
   const today=new Date();
-  const dow=today.getDay(); // 0=Sun
-  const monday=new Date(today);
-  monday.setDate(today.getDate()-(dow===0?6:dow-1));
-  return Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(today);
+    d.setDate(today.getDate()+i);
+    return d;
+  });
 }
 
 const DAY_NAMES=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
@@ -941,7 +966,31 @@ const FULL_DAYS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Saba
 
 function renderPlan(){
   const phase=getCurrentPhase();
-  q('#phase-banner').innerHTML=`
+  const dow=new Date().getDay();
+  const todaySess=getSession(gData||{},dow);
+  const sesColors={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
+
+  // Skip button state
+  ['plan-skip-btn','skip-btn'].forEach(id=>{
+    const sb=q('#'+id),si=q('#'+id.replace('btn','icon'));
+    if(sb){const sk=getSkipToday();sb.style.background=sk?'var(--green-dim)':'var(--s1)';sb.style.borderColor=sk?'var(--green)':'var(--border)';sb.style.color=sk?'var(--green)':'var(--t2)';if(si)si.textContent=sk?'\u2713':'\u25ef';}
+  });
+
+  // TODAY card
+  const ptc=q('#plan-today-card');
+  if(ptc) ptc.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${sesColors[todaySess.dot]||'var(--t3)'}"></div>
+      <div class="label">Hoy — ${FULL_DAYS[dow]}</div>
+    </div>
+    <div style="font-size:17px;font-weight:700;color:${sesColors[todaySess.dot]||'var(--text)'};margin-bottom:4px">${esc(todaySess.title)}</div>
+    <div style="font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:6px">${esc(todaySess.desc)}</div>
+    ${todaySess.duration?`<div style="font-size:12px;color:var(--t3)">${todaySess.duration} min${todaySess.device?' · '+todaySess.device:''}</div>`:''}
+  `;
+
+  // Phase banner
+  const phaseBanner=q('#phase-banner');
+  if(phaseBanner) phaseBanner.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
       <div style="width:8px;height:8px;border-radius:50%;background:${phase.color};flex-shrink:0"></div>
       <div style="font-size:14px;font-weight:700">${esc(phase.name)}</div>
@@ -949,63 +998,71 @@ function renderPlan(){
     <div style="font-size:12px;color:var(--t2)">${esc(phase.desc)}</div>
   `;
 
-  // Tomorrow card
-  const tmrDate=new Date(); tmrDate.setDate(tmrDate.getDate()+1);
-  const tmrDow=tmrDate.getDay();
-  const tmrSess=getSession(gData||{},tmrDow);
-  const sc2={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
-  const tmrHasRide=tmrSess.dot!=='rest'&&tmrSess.duration>0;
-  q('#tomorrow-date').textContent=FULL_DAYS[tmrDow]+' '+tmrDate.getDate();
-  q('#tomorrow-session').innerHTML=`
-    <div class="session-type">
-      <div class="session-dot" style="background:${sc2[tmrSess.dot]||'var(--t3)'}"></div>
-      <div style="font-size:14px;font-weight:700">${esc(tmrSess.title)}</div>
-      ${tmrSess.duration?`<span style="font-size:11px;color:var(--t2);margin-left:auto">${tmrSess.duration} min</span>`:''}
-    </div>
-    <div style="font-size:12px;color:var(--t2);margin-top:2px">${esc(tmrSess.desc)}</div>
-    ${tmrHasRide?`<div style="font-size:11px;color:var(--t3);margin-top:5px">${esc(tmrSess.device||'KICKR o exterior')}</div>`:''}
-  `;
-
   // Next A race countdown
-  const races=getRaces().filter(r=>r.priority==='A').sort((a,b)=>a.date.localeCompare(b.date));
-  const nextA=races.find(r=>daysUntil(r.date)>0);
-  if(nextA){
-    const d=daysUntil(nextA.date);
-    q('#race-countdown').innerHTML=`Proxima A: <b>${esc(nextA.name)}</b> — <b style="color:var(--amber)">${d} dias</b>`;
-  }
+  const races=getRaces().filter(r=>r.priority==='A'&&daysUntil(r.date)>0).sort((a,b)=>a.date.localeCompare(b.date));
+  const nextA=races[0];
+  const rcEl=q('#race-countdown');
+  if(rcEl&&nextA) rcEl.innerHTML=`Proxima A: <b>${esc(nextA.name)}</b> — <b style="color:var(--amber)">${daysUntil(nextA.date)} dias</b>`;
 
-  // Week row
+  // Week row: next 7 days
   const days=getWeekDays();
-  const today=new Date().toDateString();
-  q('#week-row').innerHTML=days.map((d,i)=>{
-    const isToday=d.toDateString()===today;
-    const dow=d.getDay();
-    const isRest=dow===2; // martes
-    const sess=getSession(gData||{},dow);
-  window._lastSess=sess;
+  const todayStr=new Date().toDateString();
+  const wrel=q('#week-row');
+  if(wrel) wrel.innerHTML=days.map((d,i)=>{
+    const isToday=d.toDateString()===todayStr;
+    const ddow=d.getDay();
+    const sess=getSession(gData||{},ddow);
     const dotColors={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
-    return `<div class="day-cell${isToday?' today':''}${isRest?' rest-day':''}" onclick="openDaySheet(${i})">
-      <div class="day-name">${DAY_NAMES[dow]}</div>
+    return `<div class="day-cell${isToday?' today':''}" onclick="openDaySheet(${i})">
+      <div class="day-name">${DAY_NAMES[ddow]}</div>
       <div class="day-num" style="${isToday?'color:var(--green)':''}">${d.getDate()}</div>
       <div class="day-dot" style="background:${dotColors[sess.dot]||'var(--t3)'}"></div>
     </div>`;
   }).join('');
 
+  // Office days grid
+  const odg=q('#office-grid-plan');
+  if(odg){
+    const od=getOfficeDays();
+    const dn=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+    odg.innerHTML=dn.map((n,i)=>`<div onclick="toggleOfficeDay(${i})" style="text-align:center;padding:8px 2px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;background:${od.includes(i)?'var(--green-dim)':'var(--s2)'};border:1px solid ${od.includes(i)?'var(--green)':'var(--border)'};color:${od.includes(i)?'var(--green)':'var(--t3)'}">${n}</div>`).join('');
+  }
+
+  // Compact races
+  const prl=q('#plan-races-list');
+  if(prl){
+    const allRaces=getRaces().sort((a,b)=>a.date.localeCompare(b.date));
+    const upcoming=allRaces.filter(r=>daysUntil(r.date)>=0);
+    const pClasses={A:'badge-red',B:'badge-amber',C:'badge-blue'};
+    prl.innerHTML=upcoming.map(r=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="min-width:42px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:${daysUntil(r.date)<14?'var(--amber)':'var(--text)'}">${daysUntil(r.date)}</div>
+          <div style="font-size:9px;color:var(--t2)">dias</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">${esc(r.name)}</div>
+          <div style="font-size:11px;color:var(--t2)">${r.type}${r.dist?' · '+r.dist+'km':''} · ${formatDate(r.date)}</div>
+        </div>
+        <span class="badge ${pClasses[r.priority]||'badge-blue'}">${r.priority}</span>
+      </div>`).join('')||'<div style="font-size:13px;color:var(--t2)">Sin carreras proximas</div>';
+  }
+
   // Collapsibles
   const strengthHTML=`
     <div style="font-size:13px;color:var(--t2);margin-bottom:8px">2-3 sesiones/semana, post-ride o en dia de descanso activo</div>
     ${[
-      ['Sentadilla goblet','3x12 · Movilidad cadera + cuad','https://www.youtube.com/results?search_query=goblet+squat+ciclismo'],
-      ['Hip thrust','3x15 · Gluteos y estabilidad pelvis','https://www.youtube.com/results?search_query=hip+thrust+gluteos+ciclista'],
-      ['Peso muerto rumano','3x10 · Isquios + cadena posterior','https://www.youtube.com/results?search_query=peso+muerto+rumano+isquiotibiales'],
-      ['Prensa unilateral','3x12 c/lado · Fuerza pedaleo','https://www.youtube.com/results?search_query=leg+press+unilateral+ciclismo'],
-      ['Plancha lateral','3x45s c/lado · Core lateral','https://www.youtube.com/results?search_query=plancha+lateral+core+ciclismo'],
-      ['Superman','3x15 · Erector + gluteos','https://www.youtube.com/results?search_query=superman+ejercicio+lumbar'],
-      ['Pallof press','3x12 · Anti-rotacion core','https://www.youtube.com/results?search_query=pallof+press+antirotacion'],
-      ['Nordic curl','3x8 · Prevencion de isquios','https://www.youtube.com/results?search_query=nordic+curl+isquiotibiales']
+      ['Sentadilla goblet','3x12','https://www.youtube.com/results?search_query=goblet+squat+ciclismo'],
+      ['Hip thrust','3x15','https://www.youtube.com/results?search_query=hip+thrust+gluteos+ciclista'],
+      ['Peso muerto rumano','3x10','https://www.youtube.com/results?search_query=peso+muerto+rumano+isquiotibiales'],
+      ['Prensa unilateral','3x12c/lado','https://www.youtube.com/results?search_query=leg+press+unilateral+ciclismo'],
+      ['Plancha lateral','3x45s','https://www.youtube.com/results?search_query=plancha+lateral+core+ciclismo'],
+      ['Superman','3x15','https://www.youtube.com/results?search_query=superman+ejercicio+lumbar'],
+      ['Pallof press','3x12','https://www.youtube.com/results?search_query=pallof+press+antirotacion'],
+      ['Nordic curl','3x8','https://www.youtube.com/results?search_query=nordic+curl+isquiotibiales']
     ].map(([n,d,url])=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1"><div style="font-size:13px;font-weight:600">${n}</div><div style="font-size:11px;color:var(--t2)">${d}</div></div>
-      <a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:12px;text-decoration:none">Ver video</a>
+      <a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:12px;text-decoration:none">Ver</a>
     </div>`).join('')}
   `;
   const warmupHTML=`
@@ -1018,32 +1075,32 @@ function renderPlan(){
       ['Rotacion toracica x8 c/lado','https://www.youtube.com/results?search_query=rotacion+toracica+movilidad'],
       ['Cadenas de brazos x10','https://www.youtube.com/results?search_query=movilidad+hombros+circulos+brazos']
     ].map(([e,url])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">
-      <span>${e}</span><a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;flex-shrink:0;margin-left:8px">Ver</a>
+      <span>${e}</span><a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px">Ver</a>
     </div>`).join('')}
   `;
   const stretchHTML=`
-    <div style="font-size:12px;color:var(--t2);margin-bottom:8px">15-20 minutos post-ride. Cada posicion 45-60s</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:8px">15-20 min post-ride. Cada posicion 45-60s</div>
     ${[
-      ['Piriforme en silla (figura 4)','https://www.youtube.com/results?search_query=estiramiento+piriforme+figura+4'],
-      ['Flexor de cadera en estocada','https://www.youtube.com/results?search_query=estiramiento+flexor+cadera+estocada'],
+      ['Piriforme (figura 4)','https://www.youtube.com/results?search_query=estiramiento+piriforme+figura+4'],
+      ['Flexor cadera en estocada','https://www.youtube.com/results?search_query=estiramiento+flexor+cadera+estocada'],
       ['Cuadriceps de pie','https://www.youtube.com/results?search_query=estiramiento+cuadriceps+de+pie'],
       ['Isquiotibiales sentado','https://www.youtube.com/results?search_query=estiramiento+isquiotibiales+sentado'],
       ['Rotacion de columna','https://www.youtube.com/results?search_query=rotacion+columna+estiramiento'],
       ['Pecho y hombros en pared','https://www.youtube.com/results?search_query=estiramiento+pecho+hombros+pared'],
-      ['Cuello lateral suave','https://www.youtube.com/results?search_query=estiramiento+cuello+lateral'],
-      ['Lumbar en suelo (rodillas al pecho)','https://www.youtube.com/results?search_query=estiramiento+lumbar+rodillas+pecho']
+      ['Cuello lateral','https://www.youtube.com/results?search_query=estiramiento+cuello+lateral'],
+      ['Lumbar (rodillas al pecho)','https://www.youtube.com/results?search_query=estiramiento+lumbar+rodillas+pecho']
     ].map(([e,url])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">
-      <span>${e}</span><a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;flex-shrink:0;margin-left:8px">Ver</a>
+      <span>${e}</span><a href="${url}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px">Ver</a>
     </div>`).join('')}
   `;
 
-  q('#collap-plan').innerHTML=[
-    collap('strength','Fuerza complementaria (8 ejercicios)',strengthHTML,false),
+  const cpEl=q('#collap-plan');
+  if(cpEl) cpEl.innerHTML=[
+    collap('strength','Fuerza complementaria',strengthHTML,false),
     collap('warmup','Calentamiento dinamico (pre-ride)',warmupHTML,false),
     collap('stretch','Estiramiento estatico (post-ride)',stretchHTML,false)
   ].join('');
 }
-
 function getDayStrength(dow){
   const wrm='<div class="label" style="margin-bottom:6px;margin-top:14px">Calentamiento (6-8 min)</div><div style="font-size:12px;color:var(--t2);line-height:1.8">Circulos de cadera x10 - Sentadilla profunda x10 - Estocada dinamica x8c/lado - Puente gluteos x15 - Rotacion toracica x8c/lado - Brazos x10</div>';
   const st2='<div class="label" style="margin-bottom:6px;margin-top:14px">Estiramiento (15-20 min)</div><div style="font-size:12px;color:var(--t2);line-height:1.8">Piriforme (figura 4) - Flexor cadera en estocada - Cuadriceps de pie - Isquiotibiales sentado - Rotacion columna - Pecho y hombros - Cuello lateral - Lumbar (rodillas al pecho)</div>';
@@ -1498,17 +1555,11 @@ function initCoach(){
     `<button class="qq-btn" onclick="sendQuick('${esc(qs)}')">${esc(qs)}</button>`
   ).join('');
 
-  // Check puter
-  if(typeof puter!=='undefined'){
-    puterReady=true;
-    q('#puter-status').textContent='';
-    q('#puter-status').style.display='none';
-  } else {
-    q('#puter-status').textContent='Conectando con Claude...';
-    setTimeout(()=>{
-      if(typeof puter!=='undefined'){puterReady=true;q('#puter-status').style.display='none';}
-      else{const ps2=q('#puter-status');if(ps2)ps2.innerHTML='Agrega tu API key en Ajustes. Gratis en <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai</a> (recomendado) o groq.com';}
-    },3000);
+  // Check AI key
+  const ps=q('#puter-status');
+  if(ps){
+    if(localStorage.getItem('groq_key')){ps.style.display='none';}
+    else{ps.innerHTML='Agrega tu API key en Ajustes (boton ⚙ en pestaña Hoy). Gratis en <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai</a>';ps.style.display='block';}
   }
 
   if(chatHistory.length===0&&gData){
@@ -1609,7 +1660,6 @@ async function sendMsg(){
   const input=q('#chat-input');
   const text=input.value.trim();
   if(!text) return;
-  if(!puterReady){alert('Iniciá sesión en puter.com primero (una vez es suficiente).');return;}
   input.value='';
   autoResize(input);
   chatHistory.push({role:'user',content:text});
@@ -1625,7 +1675,7 @@ async function sendMsg(){
     chatHistory.push({role:'assistant',content:reply});
   }catch(e){
     typing.classList.remove('typing');
-    typing.textContent='Error al conectar con Claude. Verifica tu sesion en puter.com';
+    typing.textContent='Error: '+e.message;
     chatHistory.pop();
   }
 }
