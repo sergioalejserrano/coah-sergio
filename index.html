@@ -410,6 +410,24 @@ select.form-ctrl option{background:var(--s2)}
     <div id="session-content"><div style="color:var(--t2);font-size:13px">Calculando...</div></div>
   </div>
 
+  <!-- PMC: Fitness / Fatiga / Forma -->
+  <div class="card" id="pmc-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">Forma y carga</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Estas 3 métricas son el corazón de TrainingPeaks. Fitness = qué tan en forma estás. Fatiga = qué tan cansado. Forma = la diferencia, te dice si estás fresco o necesitás descansar. Se calculan con tu carga (TSS) de Garmin." onclick="showTip(this.dataset.tip)">i</span>
+    </div>
+    <div id="pmc-content"><div style="color:var(--t2);font-size:13px">Calculando…</div></div>
+  </div>
+
+  <!-- Check-in diario -->
+  <div class="card" id="checkin-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">¿Cómo amaneciste?</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tu sensación subjetiva cada mañana. Garmin no mide cómo te sentís — esto lo complementa y el coach lo usa para personalizar sus recomendaciones." onclick="showTip(this.dataset.tip)">i</span>
+    </div>
+    <div id="checkin-content"></div>
+  </div>
+
   <!-- Stats 2x2 -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <div class="label">Indicadores</div>
@@ -445,6 +463,15 @@ select.form-ctrl option{background:var(--s2)}
     <div id="load-content">
       <div style="color:var(--t2);font-size:13px">Sin datos de carga</div>
     </div>
+  </div>
+
+  <!-- Tendencias -->
+  <div class="card" id="trends-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">Tendencias (30 días)</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cómo vienen evolucionando tus métricas clave. HRV bajando o FC reposo subiendo durante varios días suele indicar fatiga acumulada o que algo no anda bien." onclick="showTip(this.dataset.tip)">i</span>
+    </div>
+    <div id="trends-content"></div>
   </div>
 
   <!-- Collapsibles -->
@@ -1015,6 +1042,128 @@ function renderBBSpark(bb7){
   }).join('');
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PMC — Performance Management Chart (Fitness / Fatiga / Forma)
+// Calculado en JS desde la serie de TSS del histórico (gData.history).
+// ═══════════════════════════════════════════════════════════════
+function computePMC(history){
+  const rows=(history||[]).filter(h=>h&&h.d);
+  if(!rows.length) return null;
+  rows.sort((a,b)=>a.d<b.d?-1:1);
+  const byDate={}; rows.forEach(h=>{byDate[h.d]=(byDate[h.d]||0)+(+h.tss||0);});
+  const start=new Date(rows[0].d+'T12:00:00');
+  const today=new Date(); today.setHours(12,0,0,0);
+  const aCtl=1-Math.exp(-1/42), aAtl=1-Math.exp(-1/7);
+  let ctl=0, atl=0; const series=[];
+  for(let dt=new Date(start); dt<=today; dt.setDate(dt.getDate()+1)){
+    const key=dt.toISOString().split('T')[0];
+    const tss=byDate[key]||0;
+    ctl=ctl+aCtl*(tss-ctl);
+    atl=atl+aAtl*(tss-atl);
+    series.push({d:key,ctl,atl,tsb:ctl-atl});
+  }
+  const n=series.length, last=series[n-1];
+  const wk=series[Math.max(0,n-8)];
+  return {ctl:last.ctl, atl:last.atl, tsb:last.ctl-last.atl, ramp:last.ctl-wk.ctl, series, days:n};
+}
+function tsbLabel(tsb){
+  if(tsb>15)   return ['Muy fresco','Bueno para carrera, pero si dura mucho podrías perder forma','var(--blue)'];
+  if(tsb>=5)   return ['Fresco / listo','Forma ideal para una carrera A o un test','var(--green)'];
+  if(tsb>=-10) return ['Productivo','Zona neutra: entrenás y absorbés bien','var(--green)'];
+  if(tsb>=-30) return ['Fatiga (carga)','Bloque duro — cuidá sueño y comida','var(--amber)'];
+  return ['Fatiga alta','Riesgo de sobrecarga: necesitás recuperar','var(--red)'];
+}
+// Spark genérico reutilizando .spark-bar .b
+function renderSpark(vals){
+  const v=(vals||[]).filter(x=>typeof x==='number'&&!isNaN(x));
+  if(v.length<2) return '<div style="font-size:11px;color:var(--t3)">Histórico insuficiente todavía</div>';
+  const max=Math.max(...v), min=Math.min(...v), rng=(max-min)||1;
+  return v.map((x,i)=>{
+    const h=Math.max(4,Math.round(6+((x-min)/rng)*30));
+    return `<div class="b ${i===v.length-1?'active':''}" style="height:${h}px" title="${Math.round(x*10)/10}"></div>`;
+  }).join('');
+}
+function pmcStat(label,val,tip,col){
+  return `<div style="background:var(--s2);border-radius:8px;padding:10px 4px">
+    <div style="font-size:24px;font-weight:800;color:${col||'var(--text)'}">${val}</div>
+    <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em">${label}
+      <span style="cursor:pointer;color:var(--t3)" data-tip="${tip.replace(/"/g,'&quot;')}" onclick="showTip(this.dataset.tip)">&#9432;</span>
+    </div>
+  </div>`;
+}
+function renderPMC(){
+  const el=q('#pmc-content'); if(!el) return;
+  const pmc=computePMC(gData&&gData.history);
+  if(!pmc||pmc.days<3){
+    el.innerHTML='<div style="font-size:12px;color:var(--t2)">Construyendo tu histórico desde Garmin… aparecerá tras el próximo sync.</div>';
+    return;
+  }
+  const [flbl,fdesc,fcol]=tsbLabel(pmc.tsb);
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+      ${pmcStat('Fitness',Math.round(pmc.ctl),'Tu forma física acumulada (promedio ponderado de tu carga de 42 días). Sube lento con entrenamiento constante; bajar significa perder condición.')}
+      ${pmcStat('Fatiga',Math.round(pmc.atl),'Tu cansancio reciente (carga de los últimos 7 días). Sube y baja rápido según cuánto entrenaste esta semana.')}
+      ${pmcStat('Forma',(pmc.tsb>=0?'+':'')+Math.round(pmc.tsb),'Forma = Fitness − Fatiga. Positivo = descansado y listo; negativo = fatigado. Para una carrera A apuntá a llegar entre +5 y +15.',fcol)}
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:${fcol};font-weight:700">${flbl}</div>
+    <div style="font-size:11px;color:var(--t3)">${fdesc}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <span style="font-size:11px;color:var(--t3)">Fitness · últimos 30 días</span>
+      <span style="font-size:11px;color:${pmc.ramp>=0?'var(--green)':'var(--t3)'}">ramp ${(pmc.ramp>=0?'+':'')+pmc.ramp.toFixed(1)}/sem</span>
+    </div>
+    <div class="spark-bar" style="margin-top:4px">${renderSpark(pmc.series.slice(-30).map(s=>s.ctl))}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHECK-IN DIARIO (bienestar subjetivo)
+// ═══════════════════════════════════════════════════════════════
+const CHECKIN_METRICS=[['sleep','Sueño','&#128564;'],['legs','Piernas','&#129461;'],['energy','Energía','&#9889;'],['mood','Ánimo','&#128578;'],['motiv','Motivación','&#128293;']];
+function checkinKey(d){return 'checkin_'+(d||new Date().toISOString().split('T')[0]);}
+function getCheckin(d){try{return JSON.parse(localStorage.getItem(checkinKey(d))||'null');}catch(_){return null;}}
+function setCheckinMetric(m,v){
+  const c=getCheckin()||{};
+  c[m]=v; c.ts=new Date().toISOString();
+  localStorage.setItem(checkinKey(),JSON.stringify(c));
+  renderCheckin();
+}
+function checkinAvg(c){
+  if(!c) return null;
+  const vals=CHECKIN_METRICS.map(([k])=>c[k]).filter(v=>typeof v==='number');
+  return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+}
+function renderCheckin(){
+  const el=q('#checkin-content'); if(!el) return;
+  const c=getCheckin()||{};
+  const done=CHECKIN_METRICS.every(([k])=>typeof c[k]==='number');
+  el.innerHTML=CHECKIN_METRICS.map(([k,label,emoji])=>{
+    const val=c[k];
+    const dots=[1,2,3,4,5].map(n=>{
+      const on=val===n;
+      return `<button onclick="setCheckinMetric('${k}',${n})" style="flex:1;padding:6px 0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${on?'var(--green)':'var(--border)'};background:${on?'var(--green-dim)':'var(--s2)'};color:${on?'var(--green)':'var(--t3)'}">${n}</button>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <div style="width:104px;font-size:12px;color:var(--t2)">${emoji} ${label}</div>
+      <div style="display:flex;gap:4px;flex:1">${dots}</div>
+    </div>`;
+  }).join('')+`<div style="font-size:11px;color:var(--t3);margin-top:4px">${done?'&#10003; Registrado hoy — el coach ya lo tiene en cuenta. 1 = mal · 5 = excelente':'1 = mal · 5 = excelente'}</div>`;
+}
+
+function renderTrends(){
+  const el=q('#trends-content'); if(!el) return;
+  const h=(gData&&gData.history)||[];
+  if(h.length<3){el.innerHTML='<div style="font-size:12px;color:var(--t2)">Acumulando histórico desde Garmin…</div>';return;}
+  const series=k=>h.map(r=>r&&typeof r[k]==='number'?r[k]:null).filter(x=>x!=null).slice(-30);
+  const metrics=[['hrv','HRV','ms'],['rhr','FC reposo','bpm'],['sleep','Sueño','h'],['weight','Peso','kg']];
+  el.innerHTML=metrics.map(([k,label,unit])=>{
+    const vals=series(k);
+    const last=vals.length?vals[vals.length-1]:null;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>${label}</span><span style="color:var(--text);font-weight:700">${last!=null?(Math.round(last*10)/10)+' '+unit:'—'}</span></div>
+      <div class="spark-bar" style="height:26px">${renderSpark(vals)}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderFocoCarga(load){
   if(!load) return '<div style="color:var(--t2);font-size:13px">Datos no disponibles — correr workflow para actualizar.</div>';
   const items=[
@@ -1091,6 +1240,11 @@ function renderHoy(){
     <div style="font-size:13px;color:var(--t2);line-height:1.5">${esc(sess.desc)}</div>
     ${sess.device?`<div style="font-size:11px;color:var(--t3);margin-top:6px;letter-spacing:.03em">${esc(sess.device)}</div>`:''}
   `;
+
+  // PMC (Fitness/Fatiga/Forma) + check-in diario + tendencias
+  renderPMC();
+  renderCheckin();
+  renderTrends();
 
   // Stats grid (configurable)
   q('#stats-grid').innerHTML=buildStatsGrid(gData);
@@ -1801,6 +1955,32 @@ function initCoach(){
   }
 }
 
+function coachContext(){
+  const pmc=computePMC(gData&&gData.history);
+  const ci=getCheckin();
+  const h=(gData&&gData.history)||[];
+  const sv=k=>h.map(r=>r&&typeof r[k]==='number'?r[k]:null).filter(x=>x!=null);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const trend=(k,n)=>{n=n||7;const a=sv(k);if(a.length<4)return '';const r=avg(a.slice(-n)),b=avg(a.slice(-2*n,-n));if(r==null||b==null)return '';const d=r-b;const arrow=d>0?'subiendo':(d<0?'bajando':'estable');return `${Math.round(r*10)/10} (${arrow} vs sem previa)`;};
+  let s='';
+  if(pmc&&pmc.days>=3){
+    const [lbl]=tsbLabel(pmc.tsb);
+    s+=`\nFORMA (PMC, ${pmc.days}d de histórico):\n- Fitness/CTL: ${Math.round(pmc.ctl)} | Fatiga/ATL: ${Math.round(pmc.atl)} | Forma/TSB: ${pmc.tsb>=0?'+':''}${Math.round(pmc.tsb)} → ${lbl}\n- Ramp de Fitness: ${(pmc.ramp>=0?'+':'')+pmc.ramp.toFixed(1)}/semana`;
+  }
+  const th=trend('hrv'),tr=trend('rhr'),tw=trend('weight');
+  if(th||tr||tw){
+    s+='\nTENDENCIAS:';
+    if(th) s+=`\n- HRV: ${th}`;
+    if(tr) s+=`\n- FC reposo: ${tr}`;
+    if(tw) s+=`\n- Peso: ${tw}`;
+  }
+  if(ci){
+    const m={sleep:'sueño',legs:'piernas',energy:'energía',mood:'ánimo',motiv:'motivación'};
+    const parts=Object.keys(m).filter(k=>typeof ci[k]==='number').map(k=>`${m[k]} ${ci[k]}/5`);
+    if(parts.length) s+=`\nCHECK-IN DE HOY (1=mal,5=excelente): ${parts.join(', ')}`;
+  }
+  return s;
+}
 function buildCoachMessages(){
   const sys=`Sos el coach ciclismo personalizado de Sergio, ciclista costarricense de 32 años.
 
@@ -1834,6 +2014,7 @@ DATOS GARMIN ACTUALES:
 - Ultima actividad: ${gData?.activity||'—'}
 - TSS ultima salida: ${gData?.tss||0}
 - Foco de carga (28d): AeroAlta=${gData?.load?.aerobicHigh||0} AeroBaja=${gData?.load?.aerobicLow||0} Anaer=${gData?.load?.anaerobic||0}
+${coachContext()}
 
 ZONAS FC (LTHR 178): Z1<120 | Z2:120-139 | Z3:140-161 | Z4:162-178 | Z5>178
 ZONAS POTENCIA (FTP 236W): Z1<118W | Z2:118-165W | Z3:166-189W | Z4:190-212W | Z5:213-259W | Z6>259W

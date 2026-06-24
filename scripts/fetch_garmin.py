@@ -30,6 +30,12 @@ def encrypt(data: str, passphrase: str) -> bytes:
     ct   = AESGCM(key).encrypt(iv, data.encode(), None)
     return base64.b64encode(salt + iv + ct)
 
+def decrypt(b64: bytes, passphrase: str) -> str:
+    raw  = base64.b64decode(b64)
+    salt, iv, ct = raw[:16], raw[16:28], raw[28:]
+    key  = derive_key(passphrase, salt)
+    return AESGCM(key).decrypt(iv, ct, None).decode()
+
 
 # ── Fechas ─────────────────────────────────────────────────────────────────
 def date_str(offset: int = 0) -> str:
@@ -256,6 +262,105 @@ def build_payload(api):
     return payload
 
 
+# ── Histórico (serie temporal para PMC y tendencias) ────────────────────────
+# Estrategia barata + incremental:
+#   · TSS diario de ~1 año: una sola llamada en bloque a get_activities (sirve
+#     para CTL/ATL/TSB que se calculan en la app).
+#   · Wellness (HRV/FC reposo/sueño/peso): solo los dias que faltan respecto al
+#     histórico previo, con un tope por corrida para no abusar de la API.
+TSS_HISTORY_DAYS   = 400
+WELLNESS_BACKFILL  = 60   # dias maximos hacia atras para wellness
+MAX_WELLNESS_FETCH = 22   # tope de dias nuevos de wellness por corrida (anti-429)
+
+def load_prev_history():
+    """Lee el garmin.enc previo (si existe) y devuelve su lista 'history'."""
+    if not os.path.exists(OUT_FILE):
+        return []
+    try:
+        with open(OUT_FILE, "rb") as f:
+            prev = json.loads(decrypt(f.read(), DATA_PASSPHRASE))
+        h = prev.get("history") or []
+        print(f"  histórico previo: {len(h)} dias")
+        return h
+    except Exception as e:
+        print(f"  warn no se pudo leer histórico previo: {e}")
+        return []
+
+def build_history(api, prev_history, today_payload):
+    import collections
+    today = datetime.date.today()
+    hist = {h["d"]: dict(h) for h in (prev_history or [])
+            if isinstance(h, dict) and h.get("d")}
+
+    # ── TSS diario desde actividades en bloque ──────────────────────────────
+    acts = safe(api.get_activities, 0, 600, default=[]) or []
+    tss_by_date = collections.defaultdict(float)
+    cutoff = (today - datetime.timedelta(days=TSS_HISTORY_DAYS)).isoformat()
+    for a in acts:
+        st = (a.get("startTimeLocal") or a.get("startTimeGMT") or "")[:10]
+        if not st or st < cutoff:
+            continue
+        tss_by_date[st] += float(a.get("trainingStressScore") or 0)
+    for d, tss in tss_by_date.items():
+        hist.setdefault(d, {"d": d})["tss"] = round(tss, 1)
+    print(f"  TSS: {len(tss_by_date)} dias con actividad")
+
+    # ── Wellness incremental (solo dias faltantes, con tope) ────────────────
+    fetched = 0
+    for off in range(0, WELLNESS_BACKFILL):
+        d = (today - datetime.timedelta(days=off)).isoformat()
+        row = hist.setdefault(d, {"d": d})
+        complete = all(k in row for k in ("hrv", "rhr", "sleep"))
+        if off >= 2 and complete:
+            continue   # dia viejo ya completo -> no re-pedir
+        if fetched >= MAX_WELLNESS_FETCH and off >= 2:
+            continue   # respetamos el tope salvo hoy/ayer
+        fetched += 1
+        hr = safe(api.get_heart_rates, d, default=None)
+        if isinstance(hr, dict) and hr.get("restingHeartRate"):
+            row["rhr"] = int(hr["restingHeartRate"])
+        sl  = safe(api.get_sleep_data, d, default={}) or {}
+        dto = sl.get("dailySleepDTO") or {}
+        secs = dto.get("sleepTimeSeconds") or 0
+        if secs:
+            row["sleep"] = round(secs / 3600, 2)
+        hv = safe(api.get_hrv_data, d, default=None)
+        if isinstance(hv, dict):
+            summ = hv.get("hrvSummary") or {}
+            val = summ.get("lastNightAvg") or summ.get("weeklyAvg")
+            if val:
+                row["hrv"] = float(val)
+    print(f"  wellness: {fetched} dias consultados")
+
+    # ── Peso (bulk, best-effort) ────────────────────────────────────────────
+    try:
+        start = (today - datetime.timedelta(days=WELLNESS_BACKFILL)).isoformat()
+        bc = safe(api.get_body_composition, start, today.isoformat(), default=None)
+        items = (bc or {}).get("dateWeightList") if isinstance(bc, dict) else None
+        for w in (items or []):
+            raw_d = w.get("calendarDate") or w.get("date")
+            kg = w.get("weight")
+            if not kg:
+                continue
+            if isinstance(raw_d, (int, float)):   # epoch ms
+                raw_d = datetime.date.fromtimestamp(raw_d / 1000).isoformat()
+            d = str(raw_d)[:10]
+            if d:
+                hist.setdefault(d, {"d": d})["weight"] = round(float(kg) / 1000, 1)
+    except Exception as e:
+        print(f"  warn peso histórico: {e}")
+
+    # ── Snapshot de hoy desde el payload (no perder lo recién bajado) ────────
+    td = today.isoformat()
+    row = hist.setdefault(td, {"d": td})
+    if today_payload.get("readiness"): row["readiness"] = today_payload["readiness"]
+    if today_payload.get("hrv"):       row.setdefault("hrv", float(today_payload["hrv"]))
+    if today_payload.get("restingHR"): row.setdefault("rhr", int(today_payload["restingHR"]))
+    if today_payload.get("sleep"):     row.setdefault("sleep", today_payload["sleep"])
+
+    return [hist[k] for k in sorted(hist.keys())]
+
+
 # ── Main ───────────────────────────────────────────────────────────────────
 def main():
     print("Login Garmin con usuario y clave…")
@@ -265,6 +370,16 @@ def main():
     print("Sesión Garmin OK. Bajando datos…")
 
     payload = build_payload(api)
+
+    # ── Histórico (NO fatal: si algo falla, igual escribimos el snapshot) ────
+    prev_history = load_prev_history()
+    try:
+        payload["history"] = build_history(api, prev_history, payload)
+        print(f"  history: {len(payload['history'])} dias en total")
+    except Exception as e:
+        print(f"  warn build_history falló (no fatal): {e}")
+        if prev_history:
+            payload["history"] = prev_history   # conservamos lo que ya teníamos
 
     os.makedirs("data", exist_ok=True)
 
