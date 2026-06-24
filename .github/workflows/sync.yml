@@ -26,6 +26,16 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r scripts/requirements.txt
 
+      - name: Traer datos previos (para histórico incremental)
+        # El garmin.enc vive en la rama garmin-data, no en main. Lo traemos al
+        # arbol de trabajo para que fetch_garmin.py pueda leer el histórico
+        # previo y solo agregar los dias nuevos (en vez de re-bajar todo).
+        run: |
+          mkdir -p data
+          git fetch origin garmin-data || true
+          git show origin/garmin-data:data/garmin.enc > data/garmin.enc 2>/dev/null || true
+        continue-on-error: true
+
       - name: Bajar y cifrar datos Garmin
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
