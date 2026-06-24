@@ -1,7 +1,7 @@
 /* Service Worker — Coach Vegabikes
    ESTRATEGIA: network-first para el shell (siempre intenta la versión nueva),
    cache como fallback offline. Los datos cifrados nunca se cachean. */
-const CACHE = "coach-v7";  // ← cambiar aquí para forzar invalidación
+const CACHE = "coach-v8";  // ← cambiar aquí para forzar invalidación
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

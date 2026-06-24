@@ -465,6 +465,24 @@ select.form-ctrl option{background:var(--s2)}
     </div>
   </div>
 
+  <!-- Análisis de potencia -->
+  <div class="card" id="power-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">Análisis de potencia</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="IF (Intensity Factor) = qué tan duro fue el ride relativo a tu FTP. VI (Variability Index) = qué tan parejo pedaleaste (cerca de 1 = constante, ideal en KICKR/Z2). Abajo, cuánto tiempo pasaste en cada zona." onclick="showTip(this.dataset.tip)">i</span>
+    </div>
+    <div id="power-content"></div>
+  </div>
+
+  <!-- Polarización -->
+  <div class="card" id="polar-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">Polarización</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Distribución de tus últimas salidas entre fácil (Z1-Z2), zona gris (Z3) y duro (Z4+). El entrenamiento polarizado busca ~80% fácil y ~20% duro, con poca zona gris — justo tu punto a mejorar." onclick="showTip(this.dataset.tip)">i</span>
+    </div>
+    <div id="polar-content"></div>
+  </div>
+
   <!-- Tendencias -->
   <div class="card" id="trends-card">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
@@ -1177,6 +1195,74 @@ function renderTrends(){
   }).join('');
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ANÁLISIS DE POTENCIA — IF/VI, tiempo en zonas, polarización
+// ═══════════════════════════════════════════════════════════════
+function zoneMeta(type,zn){
+  const zones=type==='power'?PROFILE.pwrZones:PROFILE.hrZones;
+  const z=zones[zn-1];
+  return z?{name:z.z,color:z.color}:{name:'Z'+zn,color:'var(--t3)'};
+}
+function fmtMin(secs){const m=Math.round(secs/60);return m>=60?(Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')):(m+'min');}
+function renderPowerAnalysis(){
+  const el=q('#power-content'); if(!el) return;
+  const p=gData&&gData.power;
+  const np=gData&&gData.normPower, ap=gData&&gData.avgPower;
+  let head='';
+  if(np){
+    const ifv=np/PROFILE.ftp;
+    const vi=ap?np/ap:null;
+    const ifTxt=ifv<0.65?'recuperación / Z2':ifv<0.8?'endurance / tempo':ifv<0.95?'umbral':'muy duro';
+    const viTxt=vi==null?'':(vi<1.05?'muy parejo':vi<1.1?'parejo':'irregular');
+    head=`<div style="display:grid;grid-template-columns:${vi!=null?'1fr 1fr':'1fr'};gap:8px;margin-bottom:12px">
+      <div style="background:var(--s2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800">${ifv.toFixed(2)}</div><div style="font-size:10px;color:var(--t2)">IF · ${ifTxt}</div></div>
+      ${vi!=null?`<div style="background:var(--s2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800">${vi.toFixed(2)}</div><div style="font-size:10px;color:var(--t2)">VI · ${viTxt}</div></div>`:''}
+    </div>`;
+  }
+  let zonesHTML='';
+  if(p&&p.lastZones&&p.lastZones.length){
+    const tot=p.lastZones.reduce((s,z)=>s+z.secs,0)||1;
+    zonesHTML=`<div style="font-size:11px;color:var(--t2);margin-bottom:6px">Tiempo en zonas — última salida (${p.lastZonesType==='power'?'potencia':'FC'})</div>`+
+      p.lastZones.map(z=>{
+        const pct=Math.round(z.secs/tot*100), zm=zoneMeta(p.lastZonesType,z.z);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div style="width:24px;font-size:11px;color:var(--t2)">${zm.name}</div>
+          <div style="flex:1;background:var(--s2);border-radius:4px;height:14px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${zm.color}"></div></div>
+          <div style="width:62px;text-align:right;font-size:11px;color:var(--t3)">${fmtMin(z.secs)} · ${pct}%</div>
+        </div>`;
+      }).join('');
+  }
+  el.innerHTML=(head+zonesHTML)||'<div style="font-size:12px;color:var(--t2)">Sin datos de potencia/zonas en la última salida.</div>';
+}
+function computePolar(p){
+  if(!p||!p.polarSecs) return null;
+  let easy=0,gris=0,hard=0,tot=0;
+  Object.entries(p.polarSecs).forEach(([zn,s])=>{zn=+zn;s=+s;tot+=s;if(zn<=2)easy+=s;else if(zn===3)gris+=s;else hard+=s;});
+  tot=tot||1;
+  return {e:Math.round(easy/tot*100),g:Math.round(gris/tot*100),h:Math.round(hard/tot*100),rides:p.polarRides||0,type:p.polarType||'power'};
+}
+function renderPolarization(){
+  const el=q('#polar-content'); if(!el) return;
+  const pol=computePolar(gData&&gData.power);
+  if(!pol){el.innerHTML='<div style="font-size:12px;color:var(--t2)">Acumulando salidas para el análisis…</div>';return;}
+  const assess = pol.e>=75&&pol.g<=15 ? ['Polarizado &#128077;','var(--green)','Vas bien: mucho fácil, poco en zona gris.']
+    : pol.g>=25 ? ['Mucha zona gris','var(--amber)','Demasiado Z3 (ni fácil ni duro). Hacé los suaves MÁS suaves y los duros MÁS duros.']
+    : ['Mejorable','var(--amber)','Subí el volumen fácil (Z1-Z2) y concentrá lo duro en bloques.'];
+  el.innerHTML=`
+    <div style="display:flex;height:18px;border-radius:6px;overflow:hidden;margin-bottom:10px">
+      <div style="width:${pol.e}%;background:var(--green)"></div>
+      <div style="width:${pol.g}%;background:var(--amber)"></div>
+      <div style="width:${pol.h}%;background:var(--red)"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:10px">
+      <span>Fácil Z1-2 <b style="color:var(--text)">${pol.e}%</b></span>
+      <span>Gris Z3 <b style="color:var(--text)">${pol.g}%</b></span>
+      <span>Duro Z4+ <b style="color:var(--text)">${pol.h}%</b></span>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:${assess[1]}">${assess[0]}</div>
+    <div style="font-size:11px;color:var(--t3)">${assess[2]} (${pol.rides} salidas · ${pol.type==='power'?'potencia':'FC'})</div>`;
+}
+
 function renderFocoCarga(load){
   if(!load) return '<div style="color:var(--t2);font-size:13px">Datos no disponibles — correr workflow para actualizar.</div>';
   const items=[
@@ -1287,6 +1373,10 @@ function renderHoy(){
   const hasLoad=load&&(load.aerobicHigh||load.aerobicLow||load.anaerobic);
   q('#load-content').innerHTML=hasLoad?renderFocoCarga(load):
     '<div style="color:var(--t2);font-size:13px">Sin datos de carga — primer run con get_training_load_details pendiente.</div>';
+
+  // Potencia + polarización
+  renderPowerAnalysis();
+  renderPolarization();
 
   // Zones
   q('#collap-zones').innerHTML=renderZones();
@@ -2059,6 +2149,10 @@ function coachContext(){
     const f=computeFuel();
     s+=`\nFUEL OBJETIVO HOY (${f.t}): ~${f.carbs}g carbos (${f.cpk} g/kg), ${f.protein}g proteína, ${f.fat}g grasa, ~${f.kcal} kcal. Peso ${f.wt}kg.`;
   }catch(_){}
+  const np=gData&&gData.normPower, ap=gData&&gData.avgPower;
+  if(np){ s+=`\nÚLTIMA SALIDA: IF ${(np/PROFILE.ftp).toFixed(2)}`+(ap?` · VI ${(np/ap).toFixed(2)}`:''); }
+  const pol=computePolar(gData&&gData.power);
+  if(pol){ s+=`\nPOLARIZACIÓN (${pol.rides} salidas): fácil ${pol.e}% · gris Z3 ${pol.g}% · duro ${pol.h}%`; }
   return s;
 }
 function buildCoachMessages(){

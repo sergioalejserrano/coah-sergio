@@ -245,6 +245,7 @@ def build_payload(api):
         "activity":   act_str,
         "tss":        tss,
         "normPower":  norm_pwr,
+        "avgPower":   int(power or 0),
         "vo2max":     vo2max,
         "load": {
             "aerobicHigh": int(aerobic_high),
@@ -371,6 +372,69 @@ def build_history(api, prev_history, today_payload):
     return [hist[k] for k in sorted(hist.keys())]
 
 
+# ── Potencia: tiempo en zonas + polarización ────────────────────────────────
+POLAR_RIDES = 8   # salidas recientes para el análisis de polarización
+
+def _zone_secs(api, act_id):
+    """(tipo, {zona: segundos}) probando potencia y luego FC."""
+    for kind, fn in (("power", api.get_activity_power_in_timezones),
+                     ("hr",    api.get_activity_hr_in_timezones)):
+        data = safe(fn, act_id, default=None)
+        rows = None
+        if isinstance(data, list):
+            rows = data
+        elif isinstance(data, dict):
+            rows = (data.get("powerTimeInZones") or data.get("hrTimeInZones")
+                    or next((v for v in data.values() if isinstance(v, list)), None))
+        z = {}
+        for r in (rows or []):
+            try:
+                zn   = int(r.get("zoneNumber"))
+                secs = float(r.get("secsInZone") or 0)
+                if secs:
+                    z[zn] = z.get(zn, 0.0) + secs
+            except Exception:
+                continue
+        if z:
+            return kind, z
+    return None, {}
+
+def build_power(api):
+    """Zonas de la última salida + polarización de las últimas N salidas."""
+    import collections
+    acts = safe(api.get_activities, 0, 30, default=[]) or []
+    cyc = [a for a in acts
+           if (a.get("activityType") or {}).get("parentTypeId") == 2
+           or "cycling" in ((a.get("activityType") or {}).get("typeKey") or "")]
+    out = {}
+    if not cyc:
+        return out
+    # Última salida
+    k, z = _zone_secs(api, cyc[0].get("activityId"))
+    if z:
+        out["lastZonesType"] = k
+        out["lastZones"] = [{"z": zn, "secs": round(s)} for zn, s in sorted(z.items())]
+    # Polarización (no mezclamos potencia y FC)
+    agg = collections.defaultdict(float); ptype = None; rides = 0
+    for a in cyc[:POLAR_RIDES]:
+        k, z = _zone_secs(api, a.get("activityId"))
+        if not z:
+            continue
+        if ptype is None:
+            ptype = k
+        if k != ptype:
+            continue
+        for zn, s in z.items():
+            agg[zn] += s
+        rides += 1
+    if agg:
+        out["polarType"] = ptype
+        out["polarSecs"] = {int(k): round(v) for k, v in agg.items()}
+        out["polarRides"] = rides
+    print(f"  power: {len(out.get('lastZones',[]))} zonas última · polar {out.get('polarRides',0)} salidas")
+    return out
+
+
 # ── Main ───────────────────────────────────────────────────────────────────
 def main():
     print("Login Garmin con usuario y clave…")
@@ -380,6 +444,12 @@ def main():
     print("Sesión Garmin OK. Bajando datos…")
 
     payload = build_payload(api)
+
+    # ── Potencia (NO fatal) ─────────────────────────────────────────────────
+    try:
+        payload["power"] = build_power(api)
+    except Exception as e:
+        print(f"  warn build_power falló (no fatal): {e}")
 
     # ── Histórico (NO fatal: si algo falla, igual escribimos el snapshot) ────
     prev_history = load_prev_history()
