@@ -556,13 +556,26 @@ select.form-ctrl option{background:var(--s2)}
     <button class="btn btn-secondary btn-sm" onclick="openIxEditor()">Ajustar</button>
   </div>
 
-  <div class="card">
-    <div class="label" style="margin-bottom:10px">Intercambios</div>
-    <div class="ix-grid" id="ix-grid"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;color:var(--t2)">Total estimado</div>
-      <div style="font-size:15px;font-weight:700" id="kcal-total"></div>
+  <!-- Fuel del día (gramos según el entreno) -->
+  <div class="card" id="fuel-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">Fuel del día</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tus gramos objetivo de hoy según lo que vas a entrenar (fuel for the work required, como Fuelin/Hexis). Más carbos en días duros o largos, menos en descanso. La proteína se mantiene alta para tu meta de 68kg sin perder músculo." onclick="showTip(this.dataset.tip)">i</span>
     </div>
+    <div id="fuel-content"></div>
+  </div>
+
+  <!-- Carbos en la bici (intra-entreno) -->
+  <div class="card" id="fuel-ride-card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div class="label">Carbos en la bici</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cuántos carbohidratos y líquido meter por hora DURANTE el entreno. Es donde más se gana o se pierde rendimiento en salidas largas." onclick="showTip(this.dataset.tip)">i</span>
+    </div>
+    <div id="fuel-ride-content"></div>
+  </div>
+
+  <div class="card" style="padding:0 16px">
+    <div id="collap-ix"></div>
   </div>
 
   <div class="card">
@@ -1674,6 +1687,64 @@ function saveFoodRestrict(){
   const btn=document.querySelector('[onclick="saveFoodRestrict()"]');
   if(btn){btn.textContent='Guardado!';setTimeout(()=>btn.textContent='Guardar',1500);}
 }
+// ── Fuel for the work required ──────────────────────────────────────────────
+// Carbohidratos escalan con el tipo de día; proteína fija alta (meta corporal);
+// grasa base. Semáforo tipo Hexis/Fuelin.
+const CARB_PER_KG={descanso:3, endurance:5, calidad:6, largo:8};
+const CARB_CODE={
+  descanso:  ['🔴','Bajo en carbos','var(--red)'],
+  endurance: ['🟡','Carbos moderados','var(--amber)'],
+  calidad:   ['🟡','Carbos moderados-altos','var(--amber)'],
+  largo:     ['🟢','Carga de carbos','var(--green)']
+};
+function currentWeight(){
+  const ib=getInBody(); const last=ib&&ib.length?ib[ib.length-1]:null;
+  if(last&&last.weight) return last.weight;
+  const h=(gData&&gData.history)||[];
+  for(let i=h.length-1;i>=0;i--){if(typeof h[i].weight==='number')return h[i].weight;}
+  return PROFILE.weight;
+}
+function computeFuel(){
+  const t=getDayType();
+  const s=getSession(gData||{},new Date().getDay());
+  const wt=currentWeight();
+  const cpk=CARB_PER_KG[t]||5;
+  const protein=Math.round(wt*1.9);
+  const carbs=Math.round(wt*cpk);
+  const fat=Math.max(Math.round(wt*0.8),45);
+  const kcal=Math.round(carbs*4+protein*4+fat*9);
+  return {t,wt,cpk,protein,carbs,fat,kcal,code:CARB_CODE[t]||CARB_CODE.endurance,dur:s.duration||0};
+}
+function fuelDuring(dur,t){
+  if(t==='descanso'||!dur) return {carb:'—',fluid:'—',note:'Día de descanso: sin fuel especial.'};
+  if(dur<75)  return {carb:'0–30 g/h',fluid:'~500 ml/h',note:'<75 min: con agua suele bastar.'};
+  if(dur<150) return {carb:'30–60 g/h',fluid:'500–750 ml/h',note:'Gel o banano c/40 min + electrolitos.'};
+  return {carb:'60–90 g/h',fluid:'500–750 ml/h',note:'Mezclá glucosa+fructosa. Sodio 500–800 mg/h (clima CR).'};
+}
+function renderFuel(){
+  const el=q('#fuel-content'); if(!el) return;
+  const f=computeFuel();
+  const [emoji,clbl,ccol]=f.code;
+  const tile=(v,lbl,sub)=>`<div style="background:var(--s2);border-radius:8px;padding:10px 4px;text-align:center"><div style="font-size:22px;font-weight:800">${v}<span style="font-size:11px;color:var(--t2)">g</span></div><div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em">${lbl}</div><div style="font-size:9px;color:var(--t3)">${sub}</div></div>`;
+  el.innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:${ccol};margin-bottom:10px">${emoji} ${clbl} · ${f.cpk} g/kg de carbos</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      ${tile(f.carbs,'Carbos',f.cpk+' g/kg')}
+      ${tile(f.protein,'Proteína','1.9 g/kg')}
+      ${tile(f.fat,'Grasa','~0.8 g/kg')}
+    </div>
+    <div style="text-align:right;font-size:12px;color:var(--t2);margin-top:8px">~${f.kcal} kcal objetivo · ${f.wt} kg</div>`;
+}
+function renderFuelRide(){
+  const el=q('#fuel-ride-content'); if(!el) return;
+  const s=getSession(gData||{},new Date().getDay());
+  const fd=fuelDuring(s.duration||0,getDayType());
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="background:var(--s2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:17px;font-weight:800">${fd.carb}</div><div style="font-size:9px;color:var(--t2);letter-spacing:.04em">CARBOS / HORA</div></div>
+    <div style="background:var(--s2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:17px;font-weight:800">${fd.fluid}</div><div style="font-size:9px;color:var(--t2);letter-spacing:.04em">LÍQUIDO / HORA</div></div>
+  </div>
+  <div style="font-size:12px;color:var(--t3)">${fd.note}</div>`;
+}
 function renderComida(){
   const ix=getIx();
   const t=getDayType();
@@ -1682,27 +1753,32 @@ function renderComida(){
 
   q('#day-type-badge').innerHTML=`<span class="badge ${cls}">${lbl}</span>`;
 
-  q('#ix-grid').innerHTML=Object.entries({H:data.H,P:data.P,G:data.G,Fr:data.Fr,L:data.L}).map(([k,v])=>`
-    <div class="ix-cell">
-      <div class="ix-val">${v}</div>
-      <div class="ix-type">${k}</div>
-    </div>`).join('');
+  renderFuel();
+  renderFuelRide();
 
-  q('#kcal-total').textContent='~'+data.kcal+' kcal';
+  // Intercambios (detalle, colapsable)
+  const ixHTML=`<div class="ix-grid">${Object.entries({H:data.H,P:data.P,G:data.G,Fr:data.Fr,L:data.L}).map(([k,v])=>`
+    <div class="ix-cell"><div class="ix-val">${v}</div><div class="ix-type">${k}</div></div>`).join('')}</div>
+    <div style="text-align:right;font-size:12px;color:var(--t2);margin-top:8px">~${data.kcal} kcal</div>`;
+  q('#collap-ix').innerHTML=collap('ix','Intercambios (detalle)',ixHTML,false);
 
   const isRide=t!=='descanso';
+  const f=computeFuel();
+  const preCarb=Math.round(f.wt*(t==='largo'?2:1));
+  const postProt=Math.round(f.wt*0.3);
+  const postCarb=Math.round(f.wt*(t==='largo'?1:0.5));
   q('#timing-row').innerHTML=`
     <div class="timing-cell">
       <div class="tc-lbl">Antes</div>
-      <div class="tc-val">${isRide?'3h antes: avena + platano\n1h antes: gel si >90min':'No aplica'}</div>
+      <div class="tc-val">${isRide?'2–3h antes: ~'+preCarb+'g carbos\n(avena/pan/banano)':'Desayuno normal'}</div>
     </div>
     <div class="timing-cell">
       <div class="tc-lbl">Durante</div>
-      <div class="tc-val">${t==='largo'?'c/45min: gel o platano\nSiS / Tailwind':t==='descanso'?'—':'Agua solamente\n<1.5h sin carbs'}</div>
+      <div class="tc-val">${fuelDuring(f.dur,t).carb}</div>
     </div>
     <div class="timing-cell">
       <div class="tc-lbl">Despues</div>
-      <div class="tc-val">${isRide?'30min: 20-30g proteina\n+ carb segun esfuerzo':'Cena normal'}</div>
+      <div class="tc-val">${isRide?'30–60min: '+postProt+'g proteína\n+ '+postCarb+'g carbos':'Cena normal'}</div>
     </div>
   `;
 
@@ -1979,6 +2055,10 @@ function coachContext(){
     const parts=Object.keys(m).filter(k=>typeof ci[k]==='number').map(k=>`${m[k]} ${ci[k]}/5`);
     if(parts.length) s+=`\nCHECK-IN DE HOY (1=mal,5=excelente): ${parts.join(', ')}`;
   }
+  try{
+    const f=computeFuel();
+    s+=`\nFUEL OBJETIVO HOY (${f.t}): ~${f.carbs}g carbos (${f.cpk} g/kg), ${f.protein}g proteína, ${f.fat}g grasa, ~${f.kcal} kcal. Peso ${f.wt}kg.`;
+  }catch(_){}
   return s;
 }
 function buildCoachMessages(){

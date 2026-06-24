@@ -268,9 +268,13 @@ def build_payload(api):
 #     para CTL/ATL/TSB que se calculan en la app).
 #   · Wellness (HRV/FC reposo/sueño/peso): solo los dias que faltan respecto al
 #     histórico previo, con un tope por corrida para no abusar de la API.
-TSS_HISTORY_DAYS   = 400
-WELLNESS_BACKFILL  = 60   # dias maximos hacia atras para wellness
-MAX_WELLNESS_FETCH = 22   # tope de dias nuevos de wellness por corrida (anti-429)
+# Sergio tiene ~2 años en Garmin (~1 con el Fénix 7X). Bajamos histórico profundo:
+#   · TSS: 2 años de una (barato, por rango de fechas).
+#   · Wellness: ventana de 2 años pero llenada de a poco (tope por corrida).
+#     Con el cron cada 4h se completa solo en ~1-2 semanas sin abusar de la API.
+TSS_HISTORY_DAYS   = 760  # ~2 años de carga para el PMC
+WELLNESS_BACKFILL  = 760  # objetivo de wellness hacia atrás
+MAX_WELLNESS_FETCH = 30   # tope de días nuevos de wellness por corrida (anti-429)
 
 def load_prev_history():
     """Lee el garmin.enc previo (si existe) y devuelve su lista 'history'."""
@@ -292,11 +296,14 @@ def build_history(api, prev_history, today_payload):
     hist = {h["d"]: dict(h) for h in (prev_history or [])
             if isinstance(h, dict) and h.get("d")}
 
-    # ── TSS diario desde actividades en bloque ──────────────────────────────
-    acts = safe(api.get_activities, 0, 600, default=[]) or []
+    # ── TSS diario por rango de fechas (cubre ~2 años de una) ───────────────
+    start = (today - datetime.timedelta(days=TSS_HISTORY_DAYS)).isoformat()
+    acts = safe(api.get_activities_by_date, start, today.isoformat(), default=None)
+    if not acts:   # fallback al endpoint por cantidad
+        acts = safe(api.get_activities, 0, 1000, default=[]) or []
     tss_by_date = collections.defaultdict(float)
-    cutoff = (today - datetime.timedelta(days=TSS_HISTORY_DAYS)).isoformat()
-    for a in acts:
+    cutoff = start
+    for a in (acts or []):
         st = (a.get("startTimeLocal") or a.get("startTimeGMT") or "")[:10]
         if not st or st < cutoff:
             continue
@@ -305,17 +312,20 @@ def build_history(api, prev_history, today_payload):
         hist.setdefault(d, {"d": d})["tss"] = round(tss, 1)
     print(f"  TSS: {len(tss_by_date)} dias con actividad")
 
-    # ── Wellness incremental (solo dias faltantes, con tope) ────────────────
+    # ── Wellness incremental (solo dias no consultados, con tope) ───────────
+    # Marcamos cada día con "_chk" tras consultarlo una vez, así no re-pedimos
+    # días viejos sin datos (anteriores al reloj) en cada corrida. Hoy y ayer
+    # siempre se refrescan.
     fetched = 0
     for off in range(0, WELLNESS_BACKFILL):
         d = (today - datetime.timedelta(days=off)).isoformat()
         row = hist.setdefault(d, {"d": d})
-        complete = all(k in row for k in ("hrv", "rhr", "sleep"))
-        if off >= 2 and complete:
-            continue   # dia viejo ya completo -> no re-pedir
+        if off >= 2 and row.get("_chk"):
+            continue   # día viejo ya consultado -> no re-pedir
         if fetched >= MAX_WELLNESS_FETCH and off >= 2:
             continue   # respetamos el tope salvo hoy/ayer
         fetched += 1
+        row["_chk"] = 1
         hr = safe(api.get_heart_rates, d, default=None)
         if isinstance(hr, dict) and hr.get("restingHeartRate"):
             row["rhr"] = int(hr["restingHeartRate"])
