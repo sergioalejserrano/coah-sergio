@@ -453,43 +453,8 @@ select.form-ctrl option{background:var(--s2)}
   </div>
 
   <div style="margin-bottom:10px"><button onclick="setSkipToday(!getSkipToday())" id="skip-btn" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;text-align:left;color:var(--t2)"><span id="skip-icon">&#9711;</span> No puedo entrenar hoy</button></div>
-  <!-- Session recommendation -->
-  <div class="card" id="session-card" style="border-color:var(--border2)">
-    <div class="card-head"><span class="sec-ic">&#128692;</span><div class="label">Sesion de hoy</div></div>
-    <div id="session-content"><div style="color:var(--t2);font-size:13px">Calculando...</div></div>
-  </div>
 
-  <!-- PMC: Fitness / Fatiga / Forma -->
-  <div class="card" id="pmc-card">
-    <div class="card-head">
-      <span class="sec-ic">&#128200;</span>
-      <div class="label">Forma y carga</div>
-      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Estas 3 métricas son el corazón de TrainingPeaks. Fitness = qué tan en forma estás. Fatiga = qué tan cansado. Forma = la diferencia, te dice si estás fresco o necesitás descansar. Se calculan con tu carga (TSS) de Garmin." onclick="showTip(this.dataset.tip)">i</span>
-    </div>
-    <div id="pmc-content"><div style="color:var(--t2);font-size:13px">Calculando…</div></div>
-  </div>
-
-  <!-- Check-in diario -->
-  <div class="card" id="checkin-card">
-    <div class="card-head">
-      <span class="sec-ic">&#9728;&#65039;</span>
-      <div class="label">¿Cómo amaneciste?</div>
-      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tu sensación subjetiva cada mañana. Garmin no mide cómo te sentís — esto lo complementa y el coach lo usa para personalizar sus recomendaciones." onclick="showTip(this.dataset.tip)">i</span>
-    </div>
-    <div id="checkin-content"></div>
-  </div>
-
-  <!-- Stats 2x2 -->
-  <div class="card-head" style="margin-bottom:8px">
-    <span class="sec-ic">&#128202;</span>
-    <div class="label">Indicadores</div>
-    <button class="info-i" onclick="openIndModal()" style="background:none;border:none;color:var(--t2);font-size:12px;cursor:pointer;padding:2px 0">&#9881; Editar</button>
-  </div>
-  <div class="stats-grid" id="stats-grid">
-    <!-- Indicator cards rendered dynamically by buildStatsGrid() -->
-  </div><!-- /stats-grid -->
-
-  <!-- Recovery banner -->
+  <!-- Recovery banner (fijo, alerta) -->
   <div id="recovery-card" class="card" style="display:none;background:#1a0f00;border-color:#6b3a00">
     <div style="display:flex;align-items:center;gap:10px">
       <div style="font-size:24px;color:var(--amber)">&#9201;</div>
@@ -500,58 +465,133 @@ select.form-ctrl option{background:var(--s2)}
     </div>
   </div>
 
-  <!-- Ultima actividad -->
-  <div class="card" id="activity-card">
-    <div class="card-head"><span class="sec-ic">&#128690;</span><div class="label">Ultima actividad</div></div>
-    <div id="activity-content" style="color:var(--t2);font-size:13px">Sin datos</div>
+  <!-- Toolbar: editar orden -->
+  <div class="card-head" style="margin-bottom:10px">
+    <span class="sec-ic">&#128203;</span>
+    <div class="label">Hoy</div>
+    <button class="info-i btn btn-secondary btn-sm" id="hoy-edit-btn" onclick="toggleHoyEdit()">Editar orden</button>
   </div>
 
-  <!-- Foco de carga -->
-  <div class="card" id="load-card">
-    <div class="card-head">
-      <span class="sec-ic">&#127919;</span>
-      <div class="label">Foco de carga (28 dias)</div>
-      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Carga de entrenamiento acumulada en 28 dias. La barra verde muestra el rango optimo. Rojo = fuera de rango." onclick="showTip(this.dataset.tip)">i</span>
+  <div id="hoy-cards">
+    <!-- Session recommendation -->
+    <div class="pcard" data-card="session">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="session-card" style="border-color:var(--border2)">
+        <div class="card-head"><span class="sec-ic">&#128692;</span><div class="label">Sesion de hoy</div></div>
+        <div id="session-content"><div style="color:var(--t2);font-size:13px">Calculando...</div></div>
+      </div>
     </div>
-    <div id="load-content">
-      <div style="color:var(--t2);font-size:13px">Sin datos de carga</div>
-    </div>
-  </div>
 
-  <!-- Análisis de potencia -->
-  <div class="card" id="power-card">
-    <div class="card-head">
-      <span class="sec-ic">&#9889;</span>
-      <div class="label">Análisis de potencia</div>
-      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="IF (Intensity Factor) = qué tan duro fue el ride relativo a tu FTP. VI (Variability Index) = qué tan parejo pedaleaste (cerca de 1 = constante, ideal en KICKR/Z2). Abajo, cuánto tiempo pasaste en cada zona." onclick="showTip(this.dataset.tip)">i</span>
+    <!-- PMC: Fitness / Fatiga / Forma -->
+    <div class="pcard" data-card="pmc">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="pmc-card">
+        <div class="card-head">
+          <span class="sec-ic">&#128200;</span>
+          <div class="label">Forma y carga</div>
+          <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Estas 3 métricas son el corazón de TrainingPeaks. Fitness = qué tan en forma estás. Fatiga = qué tan cansado. Forma = la diferencia, te dice si estás fresco o necesitás descansar. Se calculan con tu carga (TSS) de Garmin." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="pmc-content"><div style="color:var(--t2);font-size:13px">Calculando…</div></div>
+      </div>
     </div>
-    <div id="power-content"></div>
-  </div>
 
-  <!-- Polarización -->
-  <div class="card" id="polar-card">
-    <div class="card-head">
-      <span class="sec-ic">&#127898;</span>
-      <div class="label">Polarización</div>
-      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Distribución de tus últimas salidas entre fácil (Z1-Z2), zona gris (Z3) y duro (Z4+). El entrenamiento polarizado busca ~80% fácil y ~20% duro, con poca zona gris — justo tu punto a mejorar." onclick="showTip(this.dataset.tip)">i</span>
+    <!-- Check-in diario -->
+    <div class="pcard" data-card="checkin">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="checkin-card">
+        <div class="card-head">
+          <span class="sec-ic">&#9728;&#65039;</span>
+          <div class="label">¿Cómo amaneciste?</div>
+          <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tu sensación subjetiva cada mañana. Garmin no mide cómo te sentís — esto lo complementa y el coach lo usa para personalizar sus recomendaciones." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="checkin-content"></div>
+      </div>
     </div>
-    <div id="polar-content"></div>
-  </div>
 
-  <!-- Tendencias -->
-  <div class="card" id="trends-card">
-    <div class="card-head">
-      <span class="sec-ic">&#128201;</span>
-      <div class="label">Tendencias (30 días)</div>
-      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cómo vienen evolucionando tus métricas clave. HRV bajando o FC reposo subiendo durante varios días suele indicar fatiga acumulada o que algo no anda bien." onclick="showTip(this.dataset.tip)">i</span>
+    <!-- Stats 2x2 -->
+    <div class="pcard" data-card="indicators">
+      <div class="pcard-ctrl"></div>
+      <div class="card-head" style="margin-bottom:8px">
+        <span class="sec-ic">&#128202;</span>
+        <div class="label">Indicadores</div>
+        <button class="info-i" onclick="openIndModal()" style="background:none;border:none;color:var(--t2);font-size:12px;cursor:pointer;padding:2px 0">&#9881; Editar</button>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <!-- Indicator cards rendered dynamically by buildStatsGrid() -->
+      </div><!-- /stats-grid -->
     </div>
-    <div id="trends-content"></div>
-  </div>
 
-  <!-- Collapsibles -->
-  <div class="card" style="padding:0 16px">
-    <div id="collap-zones"></div>
-  </div>
+    <!-- Ultima actividad -->
+    <div class="pcard" data-card="activity">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="activity-card">
+        <div class="card-head"><span class="sec-ic">&#128690;</span><div class="label">Ultima actividad</div></div>
+        <div id="activity-content" style="color:var(--t2);font-size:13px">Sin datos</div>
+      </div>
+    </div>
+
+    <!-- Foco de carga -->
+    <div class="pcard" data-card="load">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="load-card">
+        <div class="card-head">
+          <span class="sec-ic">&#127919;</span>
+          <div class="label">Foco de carga (28 dias)</div>
+          <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Carga de entrenamiento acumulada en 28 dias. La barra verde muestra el rango optimo. Rojo = fuera de rango." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="load-content">
+          <div style="color:var(--t2);font-size:13px">Sin datos de carga</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Análisis de potencia -->
+    <div class="pcard" data-card="power">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="power-card">
+        <div class="card-head">
+          <span class="sec-ic">&#9889;</span>
+          <div class="label">Análisis de potencia</div>
+          <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="IF (Intensity Factor) = qué tan duro fue el ride relativo a tu FTP. VI (Variability Index) = qué tan parejo pedaleaste (cerca de 1 = constante, ideal en KICKR/Z2). Abajo, cuánto tiempo pasaste en cada zona." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="power-content"></div>
+      </div>
+    </div>
+
+    <!-- Polarización -->
+    <div class="pcard" data-card="polar">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="polar-card">
+        <div class="card-head">
+          <span class="sec-ic">&#127898;</span>
+          <div class="label">Polarización</div>
+          <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Distribución de tus últimas salidas entre fácil (Z1-Z2), zona gris (Z3) y duro (Z4+). El entrenamiento polarizado busca ~80% fácil y ~20% duro, con poca zona gris — justo tu punto a mejorar." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="polar-content"></div>
+      </div>
+    </div>
+
+    <!-- Tendencias -->
+    <div class="pcard" data-card="trends">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="trends-card">
+        <div class="card-head">
+          <span class="sec-ic">&#128201;</span>
+          <div class="label">Tendencias (30 días)</div>
+          <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cómo vienen evolucionando tus métricas clave. HRV bajando o FC reposo subiendo durante varios días suele indicar fatiga acumulada o que algo no anda bien." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="trends-content"></div>
+      </div>
+    </div>
+
+    <!-- Collapsibles -->
+    <div class="pcard" data-card="zones">
+      <div class="pcard-ctrl"></div>
+      <div class="card" style="padding:0 16px">
+        <div id="collap-zones"></div>
+      </div>
+    </div>
+  </div><!-- /hoy-cards -->
 </section>
 
 <!-- PLAN TAB -->
@@ -857,7 +897,7 @@ async function decryptData(b64,pass){
 // local sin romper nada.
 // ═══════════════════════════════════════════════════════════════
 const SYNC_FILE='coach_vegabikes_userdata.json';
-const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides','plan_order','plan_hidden'];
+const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides','plan_order','plan_hidden','hoy_order','hoy_hidden'];
 const SYNC_PREFIXES=['meal_log_','meal_pick_','checkin_'];
 let syncState={enabled:false,status:'local',reason:''};
 let _pushTimer=null;
@@ -1442,9 +1482,9 @@ function renderTrends(){
   el.innerHTML=barLegend()+metrics.map(([k,label,unit,dir])=>{
     const vals=series(k);
     const last=vals.length?vals[vals.length-1]:null;
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>${label}</span><span style="color:var(--text);font-weight:700">${last!=null?(Math.round(last*10)/10)+' '+unit:'—'}</span></div>
-      <div class="spark-bar" style="height:26px">${trendBars(vals,dir,label,unit)}</div>
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:6px"><span>${label}</span><span style="color:var(--text);font-weight:700">${last!=null?(Math.round(last*10)/10)+' '+unit:'—'}</span></div>
+      <div class="spark-bar" style="height:40px">${trendBars(vals,dir,label,unit)}</div>
     </div>`;
   }).join('');
 }
@@ -1462,6 +1502,15 @@ function renderPowerAnalysis(){
   const el=q('#power-content'); if(!el) return;
   const p=gData&&gData.power;
   const np=gData&&gData.normPower, ap=gData&&gData.avgPower;
+  // De cuál salida vienen estos datos (IF/VI y zonas = última actividad)
+  let srcHTML='';
+  if(gData&&(gData.activity||gData.activityDate)){
+    const adate=fmtActivityDate(gData&&gData.activityDate);
+    srcHTML=`<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:11px;color:var(--t3)">
+      <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(gData.activity||'Última salida')}</span>
+      ${adate?`<span style="white-space:nowrap">${esc(adate)}</span>`:''}
+    </div>`;
+  }
   let head='';
   if(np){
     const ifv=np/PROFILE.ftp;
@@ -1486,7 +1535,7 @@ function renderPowerAnalysis(){
         </div>`;
       }).join('');
   }
-  el.innerHTML=(head+zonesHTML)||'<div style="font-size:12px;color:var(--t2)">Sin datos de potencia/zonas en la última salida.</div>';
+  el.innerHTML=(head+zonesHTML)?(srcHTML+head+zonesHTML):'<div style="font-size:12px;color:var(--t2)">Sin datos de potencia/zonas en la última salida.</div>';
 }
 function computePolar(p){
   if(!p||!p.polarSecs) return null;
@@ -1638,6 +1687,9 @@ function renderHoy(){
 
   // Zones
   q('#collap-zones').innerHTML=renderZones();
+
+  // Orden / ocultar cards (persistente)
+  applyCardLayout('hoy');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1655,44 +1707,56 @@ function getWeekDays(){
 const DAY_NAMES=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
 const FULL_DAYS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
 
-// ── Plan: reordenar / ocultar cards (persistente) ──────────────────
-const PLAN_CARDS=[['today','Sesión de hoy'],['phase','Fase y carrera'],['week','Próximos 7 días'],['office','Días de oficina'],['races','Carreras'],['extras','Fuerza y movilidad']];
-function getPlanOrder(){
-  let o; try{o=JSON.parse(localStorage.getItem('plan_order')||'null');}catch(_){}
-  const keys=PLAN_CARDS.map(c=>c[0]);
+// ── Reordenar / ocultar cards (persistente) — Plan y Hoy ───────────
+// Un solo motor parametrizado por "scope". Cada scope guarda su propio
+// orden y lista de ocultas en localStorage, y se sincroniza por gist.
+const CARD_SCOPES={
+  plan:{cont:'plan-cards',btn:'plan-edit-btn',ok:'plan_order',hk:'plan_hidden',
+    cards:[['today','Sesión de hoy'],['phase','Fase y carrera'],['week','Próximos 7 días'],['office','Días de oficina'],['races','Carreras'],['extras','Fuerza y movilidad']]},
+  hoy:{cont:'hoy-cards',btn:'hoy-edit-btn',ok:'hoy_order',hk:'hoy_hidden',
+    cards:[['session','Sesión de hoy'],['pmc','Forma y carga'],['checkin','¿Cómo amaneciste?'],['indicators','Indicadores'],['activity','Última actividad'],['load','Foco de carga'],['power','Análisis de potencia'],['polar','Polarización'],['trends','Tendencias'],['zones','Zonas']]}
+};
+const cardEditing={plan:false,hoy:false};
+function getCardOrder(s){
+  const sc=CARD_SCOPES[s]; let o; try{o=JSON.parse(localStorage.getItem(sc.ok)||'null');}catch(_){}
+  const keys=sc.cards.map(c=>c[0]);
   if(!Array.isArray(o)) o=keys.slice();
   o=o.filter(k=>keys.includes(k));
   keys.forEach(k=>{if(!o.includes(k))o.push(k);});
   return o;
 }
-function getPlanHidden(){try{const h=JSON.parse(localStorage.getItem('plan_hidden')||'[]');return Array.isArray(h)?h:[];}catch(_){return [];}}
-function setPlanOrder(o){localStorage.setItem('plan_order',JSON.stringify(o));syncPush();}
-function setPlanHidden(h){localStorage.setItem('plan_hidden',JSON.stringify(h));syncPush();}
-function planMove(key,dir){const o=getPlanOrder();const i=o.indexOf(key),j=i+dir;if(i<0||j<0||j>=o.length)return;[o[i],o[j]]=[o[j],o[i]];setPlanOrder(o);applyPlanLayout();}
-function planToggleHide(key){const h=getPlanHidden();const i=h.indexOf(key);if(i>=0)h.splice(i,1);else h.push(key);setPlanHidden(h);applyPlanLayout();}
-let planEditing=false;
-function togglePlanEdit(){planEditing=!planEditing;const b=q('#plan-edit-btn');if(b)b.textContent=planEditing?'Listo':'Editar orden';applyPlanLayout();}
-function applyPlanLayout(){
-  const cont=q('#plan-cards'); if(!cont) return;
-  const order=getPlanOrder(), hidden=getPlanHidden();
-  cont.classList.toggle('editing',planEditing);
+function getCardHidden(s){try{const h=JSON.parse(localStorage.getItem(CARD_SCOPES[s].hk)||'[]');return Array.isArray(h)?h:[];}catch(_){return [];}}
+function setCardOrder(s,o){localStorage.setItem(CARD_SCOPES[s].ok,JSON.stringify(o));syncPush();}
+function setCardHidden(s,h){localStorage.setItem(CARD_SCOPES[s].hk,JSON.stringify(h));syncPush();}
+function cardMove(s,key,dir){const o=getCardOrder(s);const i=o.indexOf(key),j=i+dir;if(i<0||j<0||j>=o.length)return;[o[i],o[j]]=[o[j],o[i]];setCardOrder(s,o);applyCardLayout(s);}
+function cardToggleHide(s,key){const h=getCardHidden(s);const i=h.indexOf(key);if(i>=0)h.splice(i,1);else h.push(key);setCardHidden(s,h);applyCardLayout(s);}
+function toggleCardEdit(s){cardEditing[s]=!cardEditing[s];const b=q('#'+CARD_SCOPES[s].btn);if(b)b.textContent=cardEditing[s]?'Listo':'Editar orden';applyCardLayout(s);}
+function applyCardLayout(s){
+  const sc=CARD_SCOPES[s], cont=q('#'+sc.cont); if(!cont) return;
+  const order=getCardOrder(s), hidden=getCardHidden(s), editing=cardEditing[s];
+  cont.classList.toggle('editing',editing);
   order.forEach(key=>{const el=cont.querySelector('.pcard[data-card="'+key+'"]');if(el)cont.appendChild(el);});
   order.forEach((key,idx)=>{
     const el=cont.querySelector('.pcard[data-card="'+key+'"]'); if(!el) return;
     const isHidden=hidden.includes(key);
-    el.style.display=(isHidden&&!planEditing)?'none':'';
-    el.style.opacity=(isHidden&&planEditing)?'0.5':'';
+    el.style.display=(isHidden&&!editing)?'none':'';
+    el.style.opacity=(isHidden&&editing)?'0.5':'';
     const ctrl=el.querySelector('.pcard-ctrl');
     if(!ctrl) return;
-    if(planEditing){
-      const lbl=(PLAN_CARDS.find(c=>c[0]===key)||[])[1]||key;
+    if(editing){
+      const lbl=(sc.cards.find(c=>c[0]===key)||[])[1]||key;
       ctrl.innerHTML=`<span style="font-size:12px;color:var(--t2);flex:1">${esc(lbl)}</span>
-        <button class="pctl-btn" onclick="planMove('${key}',-1)" ${idx===0?'disabled':''}>&#8593;</button>
-        <button class="pctl-btn" onclick="planMove('${key}',1)" ${idx===order.length-1?'disabled':''}>&#8595;</button>
-        <button class="pctl-btn" onclick="planToggleHide('${key}')">${isHidden?'Mostrar':'Ocultar'}</button>`;
+        <button class="pctl-btn" onclick="cardMove('${s}','${key}',-1)" ${idx===0?'disabled':''}>&#8593;</button>
+        <button class="pctl-btn" onclick="cardMove('${s}','${key}',1)" ${idx===order.length-1?'disabled':''}>&#8595;</button>
+        <button class="pctl-btn" onclick="cardToggleHide('${s}','${key}')">${isHidden?'Mostrar':'Ocultar'}</button>`;
     } else { ctrl.innerHTML=''; }
   });
 }
+// Wrappers de compatibilidad
+function togglePlanEdit(){toggleCardEdit('plan');}
+function applyPlanLayout(){applyCardLayout('plan');}
+function toggleHoyEdit(){toggleCardEdit('hoy');}
+function applyHoyLayout(){applyCardLayout('hoy');}
 function renderPlan(){
   renderCoachNotes();
   const phase=getCurrentPhase();
@@ -3010,6 +3074,10 @@ const ALL_INDICATORS = [
   {id:'sleep', label:'Sueno / Score', default:true},
   {id:'hrv',   label:'HRV semanal',   default:true},
   {id:'rhr',   label:'FC Reposo',     default:true},
+  {id:'fitness', label:'Fitness (CTL)',     default:false},
+  {id:'form',    label:'Forma (TSB)',       default:false},
+  {id:'load7',   label:'Carga 7 días (TSS)',default:false},
+  {id:'weight',  label:'Peso',              default:false},
   {id:'readiness', label:'Readiness score', default:false},
   {id:'recovery',  label:'Recovery pendiente', default:false},
   {id:'vo2',   label:'VO2max',        default:false},
@@ -3078,6 +3146,45 @@ function buildStatsGrid(gData){
     cells.push(`<div class="stat-card" onclick="showTip('FC Reposo: frecuencia cardiaca basal. Sube cuando hay fatiga, enfermedad o deshidratacion.')">
       <div class="stat-val">${gData?.restingHR||'--'}<span class="stat-unit">bpm</span></div>
       <div class="stat-lbl">FC Reposo</div>
+    </div>`);
+  }
+  if(cfg.fitness||cfg.form){
+    var _pmc=computePMC(gData&&gData.history);
+    if(cfg.fitness){
+      const v=_pmc?Math.round(_pmc.ctl):null;
+      cells.push(`<div class="stat-card" onclick="showTip('Fitness (CTL): tu forma física acumulada, promedio ponderado de tu carga de 42 días. Sube lento con entrenamiento constante.')">
+        <div class="stat-val">${v!=null?v:'--'}</div>
+        <div class="stat-lbl">Fitness</div>
+      </div>`);
+    }
+    if(cfg.form){
+      const tsb=_pmc?Math.round(_pmc.tsb):null;
+      const fc=tsb==null?'var(--text)':(tsb>=5?'var(--green)':tsb>=-10?'var(--text)':tsb>=-30?'var(--amber)':'var(--red)');
+      cells.push(`<div class="stat-card" onclick="showTip('Forma (TSB): Fitness − Fatiga. Positivo = descansado y listo; negativo = fatigado. Para una carrera A apuntá a +5 a +15.')">
+        <div class="stat-val" style="color:${fc}">${tsb!=null?(tsb>=0?'+':'')+tsb:'--'}</div>
+        <div class="stat-lbl">Forma</div>
+      </div>`);
+    }
+  }
+  if(cfg.load7){
+    let sum=null;
+    const hist=(gData&&gData.history)||[];
+    if(hist.length){
+      const cut=ymd(new Date(Date.now()-6*86400000));
+      sum=Math.round(hist.filter(r=>r&&r.d&&r.d>=cut).reduce((s,r)=>s+(+r.tss||0),0));
+    }
+    cells.push(`<div class="stat-card" onclick="showTip('Carga de los últimos 7 días: suma del TSS (Training Stress Score) de tus actividades. Refleja cuánto entrenaste esta semana.')">
+      <div class="stat-val">${sum!=null?sum:'--'}<span class="stat-unit">TSS</span></div>
+      <div class="stat-lbl">Carga 7 días</div>
+    </div>`);
+  }
+  if(cfg.weight){
+    let w=null;
+    const hist=(gData&&gData.history)||[];
+    for(let i=hist.length-1;i>=0;i--){if(hist[i]&&typeof hist[i].weight==='number'){w=Math.round(hist[i].weight*10)/10;break;}}
+    cells.push(`<div class="stat-card" onclick="showTip('Peso: última medición sincronizada desde Garmin (báscula o ingreso manual).')">
+      <div class="stat-val">${w!=null?w:'--'}<span class="stat-unit">kg</span></div>
+      <div class="stat-lbl">Peso</div>
     </div>`);
   }
   if(cfg.readiness){
