@@ -940,8 +940,11 @@ const PHASES=[
   {name:'Ride del Caribe',start:'2026-10-17',end:'2026-10-17',color:'var(--red)',desc:'Pico 2 — Carrera A'}
 ];
 
+// Fecha calendario LOCAL (YYYY-MM-DD). NO usar toISOString() para fechas:
+// convierte a UTC y por la tarde/noche (zonas UTC-) salta al día siguiente.
+function ymd(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function getCurrentPhase(){
-  const t=new Date().toISOString().split('T')[0];
+  const t=ymd();
   return PHASES.find(p=>t>=p.start&&t<=p.end)||{name:'Mantenimiento',color:'var(--t2)',desc:'Mantener forma base'};
 }
 
@@ -998,8 +1001,8 @@ function openSettings(){
   if(q('#pp-err'))q('#pp-err').textContent='';
   q('#pp-modal').style.display='flex';
 }
-function getSkipToday(){const t=new Date().toISOString().split('T')[0];return localStorage.getItem('skip_'+t)==='1';}
-function setSkipToday(v){const t=new Date().toISOString().split('T')[0];if(v)localStorage.setItem('skip_'+t,'1');else localStorage.removeItem('skip_'+t);renderAll();}
+function getSkipToday(){const t=ymd();return localStorage.getItem('skip_'+t)==='1';}
+function setSkipToday(v){const t=ymd();if(v)localStorage.setItem('skip_'+t,'1');else localStorage.removeItem('skip_'+t);renderAll();}
 function getOfficeDays(){try{return JSON.parse(localStorage.getItem('office_days')||'[2]');}catch(_){return[2];}}
 function setOfficeDays(arr){localStorage.setItem('office_days',JSON.stringify(arr));}
 function toggleOfficeDay(i){const od=getOfficeDays(),x=od.indexOf(i);if(x>=0)od.splice(x,1);else od.push(i);setOfficeDays(od);renderPlan();renderComida();renderSalud();}
@@ -1087,7 +1090,7 @@ function computePMC(history){
   const aCtl=1-Math.exp(-1/42), aAtl=1-Math.exp(-1/7);
   let ctl=0, atl=0; const series=[];
   for(let dt=new Date(start); dt<=today; dt.setDate(dt.getDate()+1)){
-    const key=dt.toISOString().split('T')[0];
+    const key=ymd(dt);
     const tss=byDate[key]||0;
     ctl=ctl+aCtl*(tss-ctl);
     atl=atl+aAtl*(tss-atl);
@@ -1149,7 +1152,7 @@ function renderPMC(){
 // CHECK-IN DIARIO (bienestar subjetivo)
 // ═══════════════════════════════════════════════════════════════
 const CHECKIN_METRICS=[['sleep','Sueño','&#128564;'],['legs','Piernas','&#129461;'],['energy','Energía','&#9889;'],['mood','Ánimo','&#128578;'],['motiv','Motivación','&#128293;']];
-function checkinKey(d){return 'checkin_'+(d||new Date().toISOString().split('T')[0]);}
+function checkinKey(d){return 'checkin_'+(d||ymd());}
 function getCheckin(d){try{return JSON.parse(localStorage.getItem(checkinKey(d))||'null');}catch(_){return null;}}
 function setCheckinMetric(m,v){
   const c=getCheckin()||{};
@@ -1562,7 +1565,7 @@ function toggleMode(m){
 function addToGoogleCal(){
   const sess=window._lastSess;
   if(!sess||!sess.duration){alert('Es un día de descanso: no hay entrenamiento para agendar.');return;}
-  const date=window._lastSheetDate||new Date().toISOString().split('T')[0];
+  const date=window._lastSheetDate||ymd();
   // Evento a las 6:00 del día (podés moverlo en Google Calendar). Sin zona horaria
   // explícita -> Google lo interpreta en tu calendario.
   const start=new Date(date+'T06:00:00');
@@ -1579,7 +1582,7 @@ async function pushWorkoutToGarmin(){
   const sess=window._lastSess;
   if(!sess){alert('Abrí primero el día para elegir la sesión.');return;}
   if(sess.dot==='rest'||!sess.duration){alert('Es un día de descanso: no hay entrenamiento para enviar.');return;}
-  const date=window._lastSheetDate||new Date().toISOString().split('T')[0];
+  const date=window._lastSheetDate||ymd();
   const purl=localStorage.getItem('proxy_url'),em=localStorage.getItem('garmin_email'),pw=localStorage.getItem('garmin_pwd');
   const token=localStorage.getItem('gh_token');
   const btns=Array.from(document.querySelectorAll('#sheet-content button')).filter(b=>/Garmin/i.test(b.textContent));
@@ -1679,7 +1682,7 @@ function openDaySheet(weekIdx){
   const dow=d.getDay();
   const sess=getSession(gData||{},dow);
   window._lastSess=sess; window._sheetMode='exterior';
-  window._lastSheetDate=d.toISOString().split('T')[0];
+  window._lastSheetDate=ymd(d);
   const colors={rest:'var(--t3)',z1:'var(--blue)',z2:'var(--green)',quality:'var(--amber)',race:'var(--red)'};
   const col=colors[sess.dot]||'var(--t3)';
 
@@ -2001,7 +2004,7 @@ function openRaceModal(id=null){
   q('#race-id').value=id||'';
   q('#race-modal-title').textContent=id?'Editar carrera':'Nueva carrera';
   q('#f-name').value=race?.name||'';
-  q('#f-date').value=race?.date||new Date().toISOString().split('T')[0];
+  q('#f-date').value=race?.date||ymd();
   q('#f-type').value=race?.type||'Ruta';
   q('#f-priority').value=race?.priority||'C';
   q('#f-dist').value=race?.dist||'';
@@ -2038,7 +2041,7 @@ function saveRace(){
 
 // InBody CRUD
 function openIbModal(){
-  q('#ib-date').value=new Date().toISOString().split('T')[0];
+  q('#ib-date').value=ymd();
   q('#ib-weight').value='';q('#ib-muscle').value='';q('#ib-fat').value='';q('#ib-tmb').value='';
   q('#ib-modal').classList.add('open');
 }
@@ -2352,8 +2355,8 @@ async function processAIFile(evt){
     else{st.textContent='Analizando imagen...';txt=await callGroq([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:pm}]}],true);}
     if(_aiMode==='inbody'){
       let parsed;try{const m=txt.match(/\{[^{}]+\}/);parsed=JSON.parse(m?m[0]:txt.trim());}catch(_){throw new Error('No se pudo parsear. Foto mas clara o PDF con texto seleccionable.');}
-      ov.style.display='none';q('#ib-date').value=parsed.date||new Date().toISOString().split('T')[0];q('#ib-weight').value=parsed.weight||'';q('#ib-muscle').value=parsed.muscle||'';q('#ib-fat').value=parsed.fat||'';q('#ib-tmb').value=parsed.tmb||'';q('#ib-modal').classList.add('open');
-    } else {localStorage.setItem('labs_extracted',txt);localStorage.setItem('labs_date',new Date().toISOString().split('T')[0]);ov.style.display='none';renderSalud();alert('Examenes guardados.');}
+      ov.style.display='none';q('#ib-date').value=parsed.date||ymd();q('#ib-weight').value=parsed.weight||'';q('#ib-muscle').value=parsed.muscle||'';q('#ib-fat').value=parsed.fat||'';q('#ib-tmb').value=parsed.tmb||'';q('#ib-modal').classList.add('open');
+    } else {localStorage.setItem('labs_extracted',txt);localStorage.setItem('labs_date',ymd());ov.style.display='none';renderSalud();alert('Examenes guardados.');}
   }catch(err){ov.style.display='none';alert('Error: '+err.message);}
 }
 
