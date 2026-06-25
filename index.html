@@ -32,7 +32,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tab{display:none;min-height:100%;padding:16px 16px calc(8px + var(--safe-b));max-width:480px;margin:0 auto}
 .tab.active{display:block}
 /* Cards */
-.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.card{background:linear-gradient(180deg,var(--s1),#131313);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.card-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.card-head .label{margin-bottom:0!important}
+.sec-ic{width:30px;height:30px;border-radius:9px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;line-height:1}
+.card-head .info-i{margin-left:auto}
 .card-sm{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px}
 /* Labels */
 .label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t2)}
@@ -70,6 +74,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .invrow:last-child{border-bottom:none}
 .inv-input{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:7px 8px;color:var(--text);font-size:13px;width:100%;font-family:var(--font)}
 .chip-add{background:var(--s2);border:1px dashed var(--border2);color:var(--t2);border-radius:8px;padding:9px;width:100%;font-size:12px;cursor:pointer;font-family:var(--font)}
+/* Plan: reordenar/ocultar cards */
+.pcard{position:relative}
+.pcard-ctrl{display:none}
+#plan-cards.editing .pcard{border:1px dashed var(--border2);border-radius:14px;padding:6px;margin-bottom:10px}
+#plan-cards.editing .pcard-ctrl{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.pctl-btn{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 10px;font-size:13px;cursor:pointer;line-height:1}
+.pctl-btn:disabled{opacity:.3}
 /* Stats grid */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .stat-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px}
@@ -87,6 +98,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .spark-bar .tb.mid{background:var(--amber)}
 .spark-bar .tb.bad{background:var(--red)}
 .spark-bar .tb.last{opacity:1;box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text)}
+.spark-bar .b,.spark-bar .tb{cursor:pointer}
+#bartip{position:fixed;z-index:600;background:var(--text);color:var(--bg);font-size:11px;font-weight:700;padding:5px 9px;border-radius:7px;pointer-events:none;white-space:nowrap;display:none;box-shadow:0 3px 10px rgba(0,0,0,.45);transform:translate(-50%,-118%)}
+#bartip::after{content:'';position:absolute;left:50%;top:100%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--text)}
 /* Gauge (SVG ring) */
 .gauge-wrap{position:relative;width:120px;height:120px;flex-shrink:0}
 .gauge-wrap svg{transform:rotate(-90deg)}
@@ -441,32 +455,35 @@ select.form-ctrl option{background:var(--s2)}
   <div style="margin-bottom:10px"><button onclick="setSkipToday(!getSkipToday())" id="skip-btn" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;text-align:left;color:var(--t2)"><span id="skip-icon">&#9711;</span> No puedo entrenar hoy</button></div>
   <!-- Session recommendation -->
   <div class="card" id="session-card" style="border-color:var(--border2)">
-    <div class="label" style="margin-bottom:8px">Sesion de hoy</div>
+    <div class="card-head"><span class="sec-ic">&#128692;</span><div class="label">Sesion de hoy</div></div>
     <div id="session-content"><div style="color:var(--t2);font-size:13px">Calculando...</div></div>
   </div>
 
   <!-- PMC: Fitness / Fatiga / Forma -->
   <div class="card" id="pmc-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+    <div class="card-head">
+      <span class="sec-ic">&#128200;</span>
       <div class="label">Forma y carga</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Estas 3 métricas son el corazón de TrainingPeaks. Fitness = qué tan en forma estás. Fatiga = qué tan cansado. Forma = la diferencia, te dice si estás fresco o necesitás descansar. Se calculan con tu carga (TSS) de Garmin." onclick="showTip(this.dataset.tip)">i</span>
+      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Estas 3 métricas son el corazón de TrainingPeaks. Fitness = qué tan en forma estás. Fatiga = qué tan cansado. Forma = la diferencia, te dice si estás fresco o necesitás descansar. Se calculan con tu carga (TSS) de Garmin." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="pmc-content"><div style="color:var(--t2);font-size:13px">Calculando…</div></div>
   </div>
 
   <!-- Check-in diario -->
   <div class="card" id="checkin-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+    <div class="card-head">
+      <span class="sec-ic">&#9728;&#65039;</span>
       <div class="label">¿Cómo amaneciste?</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tu sensación subjetiva cada mañana. Garmin no mide cómo te sentís — esto lo complementa y el coach lo usa para personalizar sus recomendaciones." onclick="showTip(this.dataset.tip)">i</span>
+      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tu sensación subjetiva cada mañana. Garmin no mide cómo te sentís — esto lo complementa y el coach lo usa para personalizar sus recomendaciones." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="checkin-content"></div>
   </div>
 
   <!-- Stats 2x2 -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div class="card-head" style="margin-bottom:8px">
+    <span class="sec-ic">&#128202;</span>
     <div class="label">Indicadores</div>
-    <button onclick="openIndModal()" style="background:none;border:none;color:var(--t2);font-size:12px;cursor:pointer;padding:2px 0">&#9881; Editar</button>
+    <button class="info-i" onclick="openIndModal()" style="background:none;border:none;color:var(--t2);font-size:12px;cursor:pointer;padding:2px 0">&#9881; Editar</button>
   </div>
   <div class="stats-grid" id="stats-grid">
     <!-- Indicator cards rendered dynamically by buildStatsGrid() -->
@@ -485,15 +502,16 @@ select.form-ctrl option{background:var(--s2)}
 
   <!-- Ultima actividad -->
   <div class="card" id="activity-card">
-    <div class="label" style="margin-bottom:8px">Ultima actividad</div>
+    <div class="card-head"><span class="sec-ic">&#128690;</span><div class="label">Ultima actividad</div></div>
     <div id="activity-content" style="color:var(--t2);font-size:13px">Sin datos</div>
   </div>
 
   <!-- Foco de carga -->
   <div class="card" id="load-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+    <div class="card-head">
+      <span class="sec-ic">&#127919;</span>
       <div class="label">Foco de carga (28 dias)</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Carga de entrenamiento acumulada en 28 dias. La barra verde muestra el rango optimo. Rojo = fuera de rango." onclick="showTip(this.dataset.tip)">i</span>
+      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Carga de entrenamiento acumulada en 28 dias. La barra verde muestra el rango optimo. Rojo = fuera de rango." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="load-content">
       <div style="color:var(--t2);font-size:13px">Sin datos de carga</div>
@@ -502,27 +520,30 @@ select.form-ctrl option{background:var(--s2)}
 
   <!-- Análisis de potencia -->
   <div class="card" id="power-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+    <div class="card-head">
+      <span class="sec-ic">&#9889;</span>
       <div class="label">Análisis de potencia</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="IF (Intensity Factor) = qué tan duro fue el ride relativo a tu FTP. VI (Variability Index) = qué tan parejo pedaleaste (cerca de 1 = constante, ideal en KICKR/Z2). Abajo, cuánto tiempo pasaste en cada zona." onclick="showTip(this.dataset.tip)">i</span>
+      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="IF (Intensity Factor) = qué tan duro fue el ride relativo a tu FTP. VI (Variability Index) = qué tan parejo pedaleaste (cerca de 1 = constante, ideal en KICKR/Z2). Abajo, cuánto tiempo pasaste en cada zona." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="power-content"></div>
   </div>
 
   <!-- Polarización -->
   <div class="card" id="polar-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+    <div class="card-head">
+      <span class="sec-ic">&#127898;</span>
       <div class="label">Polarización</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Distribución de tus últimas salidas entre fácil (Z1-Z2), zona gris (Z3) y duro (Z4+). El entrenamiento polarizado busca ~80% fácil y ~20% duro, con poca zona gris — justo tu punto a mejorar." onclick="showTip(this.dataset.tip)">i</span>
+      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Distribución de tus últimas salidas entre fácil (Z1-Z2), zona gris (Z3) y duro (Z4+). El entrenamiento polarizado busca ~80% fácil y ~20% duro, con poca zona gris — justo tu punto a mejorar." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="polar-content"></div>
   </div>
 
   <!-- Tendencias -->
   <div class="card" id="trends-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+    <div class="card-head">
+      <span class="sec-ic">&#128201;</span>
       <div class="label">Tendencias (30 días)</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cómo vienen evolucionando tus métricas clave. HRV bajando o FC reposo subiendo durante varios días suele indicar fatiga acumulada o que algo no anda bien." onclick="showTip(this.dataset.tip)">i</span>
+      <span class="info-i" style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cómo vienen evolucionando tus métricas clave. HRV bajando o FC reposo subiendo durante varios días suele indicar fatiga acumulada o que algo no anda bien." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="trends-content"></div>
   </div>
@@ -539,45 +560,76 @@ select.form-ctrl option{background:var(--s2)}
   <!-- Ajustes que el coach guardó por chat -->
   <div id="coach-notes-plan"></div>
 
-  <!-- HOY (sesion expandida) -->
-  <div id="plan-today-card" class="card" style="margin-bottom:10px"></div>
-
-  <!-- Skip toggle -->
+  <!-- Skip toggle (fijo) -->
   <div style="margin-bottom:10px">
     <button onclick="setSkipToday(!getSkipToday())" id="plan-skip-btn" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;text-align:left;color:var(--t2)">
       <span id="plan-skip-icon">&#9711;</span> No puedo entrenar hoy
     </button>
   </div>
 
-  <!-- Fase + countdown -->
-  <div style="margin-bottom:12px">
-    <div id="phase-banner" class="phase-banner"></div>
-    <div id="race-countdown" style="font-size:12px;color:var(--t2);margin-top:6px"></div>
+  <!-- Toolbar: editar orden -->
+  <div class="card-head" style="margin-bottom:10px">
+    <span class="sec-ic">&#128203;</span>
+    <div class="label">Tu plan</div>
+    <button class="info-i btn btn-secondary btn-sm" id="plan-edit-btn" onclick="togglePlanEdit()">Editar orden</button>
   </div>
 
-  <!-- Proximos 7 dias -->
-  <div class="label" style="margin-bottom:8px">Proximos 7 dias</div>
-  <div class="week-row" id="week-row"></div>
-
-  <!-- Dias de oficina -->
-  <div class="card" style="margin-bottom:10px">
-    <div class="label" style="margin-bottom:10px">Dias de oficina (sin entreno)</div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="office-grid-plan"></div>
-    <div style="font-size:11px;color:var(--t3);margin-top:8px">Toca para activar/desactivar</div>
-  </div>
-
-  <!-- Carreras -->
-  <div class="card" style="margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div class="label">Carreras</div>
-      <button class="btn btn-primary btn-sm" onclick="openRaceModal()">+ Agregar</button>
+  <div id="plan-cards">
+    <!-- HOY (sesion expandida) -->
+    <div class="pcard" data-card="today">
+      <div class="pcard-ctrl"></div>
+      <div id="plan-today-card" class="card" style="margin-bottom:10px"></div>
     </div>
-    <div id="plan-races-list"></div>
-  </div>
 
-  <!-- Fuerza / Calentamiento / Estiramiento -->
-  <div class="card" style="padding:0 16px">
-    <div id="collap-plan"></div>
+    <!-- Fase + countdown -->
+    <div class="pcard" data-card="phase">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div class="card-head"><span class="sec-ic">&#128338;</span><div class="label">Fase y carrera</div></div>
+        <div id="phase-banner" class="phase-banner"></div>
+        <div id="race-countdown" style="font-size:12px;color:var(--t2);margin-top:6px"></div>
+      </div>
+    </div>
+
+    <!-- Proximos 7 dias -->
+    <div class="pcard" data-card="week">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div class="card-head"><span class="sec-ic">&#128197;</span><div class="label">Proximos 7 dias</div></div>
+        <div class="week-row" id="week-row"></div>
+      </div>
+    </div>
+
+    <!-- Dias de oficina -->
+    <div class="pcard" data-card="office">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div class="card-head"><span class="sec-ic">&#127970;</span><div class="label">Dias de oficina (sin entreno)</div></div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="office-grid-plan"></div>
+        <div style="font-size:11px;color:var(--t3);margin-top:8px">Toca para activar/desactivar</div>
+      </div>
+    </div>
+
+    <!-- Carreras -->
+    <div class="pcard" data-card="races">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div class="card-head">
+          <span class="sec-ic">&#127937;</span>
+          <div class="label">Carreras</div>
+          <button class="info-i btn btn-primary btn-sm" onclick="openRaceModal()">+ Agregar</button>
+        </div>
+        <div id="plan-races-list"></div>
+      </div>
+    </div>
+
+    <!-- Fuerza / Calentamiento / Estiramiento -->
+    <div class="pcard" data-card="extras">
+      <div class="pcard-ctrl"></div>
+      <div class="card" style="padding:0 16px">
+        <div id="collap-plan"></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -805,7 +857,7 @@ async function decryptData(b64,pass){
 // local sin romper nada.
 // ═══════════════════════════════════════════════════════════════
 const SYNC_FILE='coach_vegabikes_userdata.json';
-const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides'];
+const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides','plan_order','plan_hidden'];
 const SYNC_PREFIXES=['meal_log_','meal_pick_','checkin_'];
 let syncState={enabled:false,status:'local',reason:''};
 let _pushTimer=null;
@@ -1232,14 +1284,16 @@ function readinessLabel(score){
 
 function bbColor(v){if(v>=60) return 'var(--green)'; if(v>=30) return 'var(--amber)'; return 'var(--red)';}
 
+function barLegend(){
+  return `<div style="display:flex;gap:12px;justify-content:flex-end;font-size:9px;color:var(--t3);margin-bottom:6px">
+    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--green);margin-right:3px"></span>bueno</span>
+    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--amber);margin-right:3px"></span>normal</span>
+    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--red);margin-right:3px"></span>flojo</span>
+  </div>`;
+}
 function renderBBSpark(bb7){
   if(!bb7||!bb7.length) return '';
-  const max=Math.max(...bb7,1);
-  return bb7.map((v,i)=>{
-    const h=Math.max(4,Math.round(v/max*36));
-    const cls=i===bb7.length-1?(v>0?'active':'today'):(v===max?'active':'');
-    return `<div class="b ${cls}" style="height:${h}px" title="${v}"></div>`;
-  }).join('');
+  return trendBars(bb7,'up','Body Battery','');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1273,33 +1327,45 @@ function tsbLabel(tsb){
   if(tsb>=-30) return ['Fatiga (carga)','Bloque duro — cuidá sueño y comida','var(--amber)'];
   return ['Fatiga alta','Riesgo de sobrecarga: necesitás recuperar','var(--red)'];
 }
-// Spark genérico reutilizando .spark-bar .b
-function renderSpark(vals){
-  const v=(vals||[]).filter(x=>typeof x==='number'&&!isNaN(x));
-  if(v.length<2) return '<div style="font-size:11px;color:var(--t3)">Histórico insuficiente todavía</div>';
-  const max=Math.max(...v), min=Math.min(...v), rng=(max-min)||1;
-  return v.map((x,i)=>{
-    const h=Math.max(4,Math.round(6+((x-min)/rng)*30));
-    return `<div class="b ${i===v.length-1?'active':''}" style="height:${h}px" title="${Math.round(x*10)/10}"></div>`;
-  }).join('');
-}
 // Barras con semáforo: colorea cada barra según si el valor fue bueno o malo
 // respecto al baseline propio de la serie. dir='up' (más alto mejor: HRV, sueño)
 // o 'down' (más bajo mejor: FC reposo, peso hacia meta). La última va destacada.
-function trendBars(vals,dir){
+function trendBars(vals,dir,label,unit){
   const v=(vals||[]).filter(x=>typeof x==='number'&&!isNaN(x));
   if(v.length<2) return '<div style="font-size:11px;color:var(--t3)">Histórico insuficiente todavía</div>';
   const max=Math.max(...v),min=Math.min(...v),rng=(max-min)||1;
   const mean=v.reduce((a,b)=>a+b,0)/v.length;
   const sd=Math.sqrt(v.reduce((a,b)=>a+(b-mean)*(b-mean),0)/v.length)||(rng/4)||1;
+  const n=v.length;
   return v.map((x,i)=>{
     const h=Math.max(4,Math.round(6+((x-min)/rng)*30));
     let z=(x-mean)/sd; if(dir==='down') z=-z;
     const cls=z>0.4?'good':(z<-0.4?'bad':'mid');
-    const last=i===v.length-1?' last':'';
-    return `<div class="tb ${cls}${last}" style="height:${h}px" title="${Math.round(x*10)/10}"></div>`;
+    const last=i===n-1?' last':'';
+    const val=Math.round(x*10)/10;
+    const ago=n-1-i; const when=ago===0?'hoy':ago===1?'ayer':'hace '+ago+'d';
+    const tip=(label?label+': ':'')+val+(unit?' '+unit:'')+' · '+when;
+    return `<div class="tb ${cls}${last}" style="height:${h}px" title="${tip}" data-tip="${esc(tip)}"></div>`;
   }).join('');
 }
+// Tap en cualquier barra de spark → muestra el valor correspondiente
+(function initBarTip(){
+  const tip=document.createElement('div'); tip.id='bartip';
+  if(document.body) document.body.appendChild(tip);
+  else document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(tip));
+  let hideT=null;
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('.spark-bar .b, .spark-bar .tb');
+    if(!b){ tip.style.display='none'; return; }
+    const txt=b.dataset.tip||b.getAttribute('title')||'';
+    if(!txt){ tip.style.display='none'; return; }
+    const r=b.getBoundingClientRect();
+    tip.textContent=txt; tip.style.display='block';
+    tip.style.left=(r.left+r.width/2)+'px';
+    tip.style.top=r.top+'px';
+    clearTimeout(hideT); hideT=setTimeout(()=>{tip.style.display='none';},2200);
+  });
+})();
 function pmcStat(label,val,tip,col){
   return `<div style="background:var(--s2);border-radius:8px;padding:10px 4px">
     <div style="font-size:24px;font-weight:800;color:${col||'var(--text)'}">${val}</div>
@@ -1328,7 +1394,8 @@ function renderPMC(){
       <span style="font-size:11px;color:var(--t3)">Fitness · últimos 30 días</span>
       <span style="font-size:11px;color:${pmc.ramp>=0?'var(--green)':'var(--t3)'}">ramp ${(pmc.ramp>=0?'+':'')+pmc.ramp.toFixed(1)}/sem</span>
     </div>
-    <div class="spark-bar" style="margin-top:4px">${renderSpark(pmc.series.slice(-30).map(s=>s.ctl))}</div>`;
+    ${barLegend()}
+    <div class="spark-bar" style="margin-top:2px">${trendBars(pmc.series.slice(-30).map(s=>s.ctl),'up','Fitness','')}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1372,17 +1439,12 @@ function renderTrends(){
   if(h.length<3){el.innerHTML='<div style="font-size:12px;color:var(--t2)">Acumulando histórico desde Garmin…</div>';return;}
   const series=k=>h.map(r=>r&&typeof r[k]==='number'?r[k]:null).filter(x=>x!=null).slice(-30);
   const metrics=[['hrv','HRV','ms','up'],['rhr','FC reposo','bpm','down'],['sleep','Sueño','h','up'],['weight','Peso','kg','down']];
-  const legend=`<div style="display:flex;gap:12px;justify-content:flex-end;font-size:9px;color:var(--t3);margin-bottom:8px">
-    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--green);margin-right:3px"></span>bueno</span>
-    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--amber);margin-right:3px"></span>normal</span>
-    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--red);margin-right:3px"></span>flojo</span>
-  </div>`;
-  el.innerHTML=legend+metrics.map(([k,label,unit,dir])=>{
+  el.innerHTML=barLegend()+metrics.map(([k,label,unit,dir])=>{
     const vals=series(k);
     const last=vals.length?vals[vals.length-1]:null;
     return `<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>${label}</span><span style="color:var(--text);font-weight:700">${last!=null?(Math.round(last*10)/10)+' '+unit:'—'}</span></div>
-      <div class="spark-bar" style="height:26px">${trendBars(vals,dir)}</div>
+      <div class="spark-bar" style="height:26px">${trendBars(vals,dir,label,unit)}</div>
     </div>`;
   }).join('');
 }
@@ -1593,6 +1655,44 @@ function getWeekDays(){
 const DAY_NAMES=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
 const FULL_DAYS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
 
+// ── Plan: reordenar / ocultar cards (persistente) ──────────────────
+const PLAN_CARDS=[['today','Sesión de hoy'],['phase','Fase y carrera'],['week','Próximos 7 días'],['office','Días de oficina'],['races','Carreras'],['extras','Fuerza y movilidad']];
+function getPlanOrder(){
+  let o; try{o=JSON.parse(localStorage.getItem('plan_order')||'null');}catch(_){}
+  const keys=PLAN_CARDS.map(c=>c[0]);
+  if(!Array.isArray(o)) o=keys.slice();
+  o=o.filter(k=>keys.includes(k));
+  keys.forEach(k=>{if(!o.includes(k))o.push(k);});
+  return o;
+}
+function getPlanHidden(){try{const h=JSON.parse(localStorage.getItem('plan_hidden')||'[]');return Array.isArray(h)?h:[];}catch(_){return [];}}
+function setPlanOrder(o){localStorage.setItem('plan_order',JSON.stringify(o));syncPush();}
+function setPlanHidden(h){localStorage.setItem('plan_hidden',JSON.stringify(h));syncPush();}
+function planMove(key,dir){const o=getPlanOrder();const i=o.indexOf(key),j=i+dir;if(i<0||j<0||j>=o.length)return;[o[i],o[j]]=[o[j],o[i]];setPlanOrder(o);applyPlanLayout();}
+function planToggleHide(key){const h=getPlanHidden();const i=h.indexOf(key);if(i>=0)h.splice(i,1);else h.push(key);setPlanHidden(h);applyPlanLayout();}
+let planEditing=false;
+function togglePlanEdit(){planEditing=!planEditing;const b=q('#plan-edit-btn');if(b)b.textContent=planEditing?'Listo':'Editar orden';applyPlanLayout();}
+function applyPlanLayout(){
+  const cont=q('#plan-cards'); if(!cont) return;
+  const order=getPlanOrder(), hidden=getPlanHidden();
+  cont.classList.toggle('editing',planEditing);
+  order.forEach(key=>{const el=cont.querySelector('.pcard[data-card="'+key+'"]');if(el)cont.appendChild(el);});
+  order.forEach((key,idx)=>{
+    const el=cont.querySelector('.pcard[data-card="'+key+'"]'); if(!el) return;
+    const isHidden=hidden.includes(key);
+    el.style.display=(isHidden&&!planEditing)?'none':'';
+    el.style.opacity=(isHidden&&planEditing)?'0.5':'';
+    const ctrl=el.querySelector('.pcard-ctrl');
+    if(!ctrl) return;
+    if(planEditing){
+      const lbl=(PLAN_CARDS.find(c=>c[0]===key)||[])[1]||key;
+      ctrl.innerHTML=`<span style="font-size:12px;color:var(--t2);flex:1">${esc(lbl)}</span>
+        <button class="pctl-btn" onclick="planMove('${key}',-1)" ${idx===0?'disabled':''}>&#8593;</button>
+        <button class="pctl-btn" onclick="planMove('${key}',1)" ${idx===order.length-1?'disabled':''}>&#8595;</button>
+        <button class="pctl-btn" onclick="planToggleHide('${key}')">${isHidden?'Mostrar':'Ocultar'}</button>`;
+    } else { ctrl.innerHTML=''; }
+  });
+}
 function renderPlan(){
   renderCoachNotes();
   const phase=getCurrentPhase();
@@ -1730,6 +1830,8 @@ function renderPlan(){
     collap('warmup','Calentamiento dinamico (pre-ride)',warmupHTML,false),
     collap('stretch','Estiramiento estatico (post-ride)',stretchHTML,false)
   ].join('');
+
+  applyPlanLayout();
 }
 function getDayStrength(dow){
   const wrm='<div class="label" style="margin-bottom:6px;margin-top:14px">Calentamiento (6-8 min)</div><div style="font-size:12px;color:var(--t2);line-height:1.8">Circulos de cadera x10 - Sentadilla profunda x10 - Estocada dinamica x8c/lado - Puente gluteos x15 - Rotacion toracica x8c/lado - Brazos x10</div>';
@@ -2203,12 +2305,30 @@ function addMeal(m){const a=getMealLog();a.push(m);saveMealLog(a);renderComida()
 function deleteMeal(i){const a=getMealLog();a.splice(i,1);saveMealLog(a);renderComida();}
 function mealTotals(){return getMealLog().reduce((s,m)=>({kcal:s.kcal+(+m.kcal||0),c:s.c+(+m.c||0),p:s.p+(+m.p||0),f:s.f+(+m.f||0)}),{kcal:0,c:0,p:0,f:0});}
 function openMealManual(){
-  const name=prompt('¿Qué comiste?'); if(!name) return;
-  const kcal=parseInt(prompt('Calorías aprox (kcal):','')||'0',10)||0;
-  const c=parseInt(prompt('Carbos (g):','')||'0',10)||0;
-  const p=parseInt(prompt('Proteína (g):','')||'0',10)||0;
-  const f=parseInt(prompt('Grasa (g):','')||'0',10)||0;
-  addMeal({name,kcal:kcal||(c*4+p*4+f*9),c,p,f,t:new Date().toISOString()});
+  const desc=prompt('¿Qué comiste? Describilo (ej: "2 tostadas con aguacate y un café con leche")');
+  if(!desc||!desc.trim()) return;
+  inferMealFromText(desc.trim());
+}
+async function inferMealFromText(desc){
+  if(!localStorage.getItem('groq_key')){
+    // Sin IA: guardamos solo el nombre y el usuario puede editar luego
+    if(confirm('No hay API key configurada para estimar macros. ¿Guardar "'+desc+'" sin macros?'))
+      addMeal({name:desc,kcal:0,c:0,p:0,f:0,t:new Date().toISOString()});
+    return;
+  }
+  const ov=q('#ai-upload-overlay'),st=q('#ai-upload-status');
+  if(ov){ov.style.display='flex';} if(st) st.textContent='Estimando calorías y macros...';
+  try{
+    const prompt2='Eres nutricionista. Estima los macros de esta comida descrita por el usuario. Responde SOLO JSON sin backticks ni texto adicional: {"name":"nombre corto","kcal":N,"c":N,"p":N,"f":N} donde c=carbohidratos g, p=proteína g, f=grasa g.\n\nComida: '+desc;
+    const txt=await callGroq([{role:'user',content:prompt2}]);
+    let parsed;try{const m=txt.match(/\{[\s\S]*\}/);parsed=JSON.parse(m?m[0]:txt.trim());}catch(_){throw new Error('No pude estimar los macros. Probá describirlo distinto.');}
+    if(ov) ov.style.display='none';
+    const c=+parsed.c||0,p=+parsed.p||0,f=+parsed.f||0;
+    const kcal=+parsed.kcal||(c*4+p*4+f*9);
+    if(confirm(`Estimé: ${parsed.name||desc}\n~${kcal} kcal · ${c}g carbos · ${p}g proteína · ${f}g grasa\n\n¿Agregar al registro de hoy?`)){
+      addMeal({name:parsed.name||desc,kcal,c,p,f,t:new Date().toISOString()});
+    }
+  }catch(err){ if(ov) ov.style.display='none'; alert('Error: '+err.message); }
 }
 function renderMealLog(){
   const el=q('#meal-log'); if(!el) return;
