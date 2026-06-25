@@ -41,6 +41,35 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .badge-amber{background:#451a03;color:#fbbf24}
 .badge-red{background:#450a0a;color:#f87171}
 .badge-blue{background:#1e3a5f;color:#93c5fd}
+/* ── Comida (rediseño) ── */
+.meal-hero{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,#1a2e1a,#161616);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.ring{position:relative;width:64px;height:64px;flex-shrink:0}
+.ring svg{transform:rotate(-90deg)}
+.ring-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring-num{font-size:15px;font-weight:800;line-height:1}
+.ring-sub{font-size:8px;color:var(--t2);letter-spacing:.04em;text-transform:uppercase}
+.meal-card{position:relative;border-radius:14px;padding:14px;margin-bottom:12px;overflow:hidden;border:1px solid var(--border);background:var(--s1)}
+.meal-card .mc-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.meal-emoji{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;background:var(--s2)}
+.mc-moment{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t2)}
+.mc-dish{font-size:15px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.mc-note{font-size:12px;color:var(--t2);line-height:1.5;margin-top:2px}
+.mc-macros{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.macro-pill{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--s2);color:var(--t2)}
+.macro-pill b{color:var(--text)}
+.mc-swap{position:absolute;top:12px;right:12px;background:var(--s2);border:1px solid var(--border);color:var(--t2);width:30px;height:30px;border-radius:8px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mc-swap:active{transform:scale(.92)}
+.meal-card.gr-d{background:linear-gradient(135deg,#2a1f0f,var(--s1))}
+.meal-card.gr-a{background:linear-gradient(135deg,#0f2233,var(--s1))}
+.meal-card.gr-c{background:linear-gradient(135deg,#23160f,var(--s1))}
+.meal-card.gr-s{background:linear-gradient(135deg,#1a2417,var(--s1))}
+.meal-card.gr-r{background:linear-gradient(135deg,#2a0f14,var(--s1))}
+.logrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.logrow:last-child{border-bottom:none}
+.invrow{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.invrow:last-child{border-bottom:none}
+.inv-input{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:7px 8px;color:var(--text);font-size:13px;width:100%;font-family:var(--font)}
+.chip-add{background:var(--s2);border:1px dashed var(--border2);color:var(--t2);border-radius:8px;padding:9px;width:100%;font-size:12px;cursor:pointer;font-family:var(--font)}
 /* Stats grid */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .stat-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px}
@@ -52,6 +81,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .spark-bar .b{flex:1;background:var(--s3);border-radius:3px;min-height:3px;transition:height .3s}
 .spark-bar .b.today{background:var(--green-dim)}
 .spark-bar .b.active{background:var(--green)}
+/* Barras de tendencia con semáforo según fueron buenos/malos números */
+.spark-bar .tb{flex:1;border-radius:3px;min-height:3px;transition:height .3s;opacity:.55}
+.spark-bar .tb.good{background:var(--green)}
+.spark-bar .tb.mid{background:var(--amber)}
+.spark-bar .tb.bad{background:var(--red)}
+.spark-bar .tb.last{opacity:1;box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text)}
 /* Gauge (SVG ring) */
 .gauge-wrap{position:relative;width:120px;height:120px;flex-shrink:0}
 .gauge-wrap svg{transform:rotate(-90deg)}
@@ -501,6 +536,9 @@ select.form-ctrl option{background:var(--s2)}
 <!-- PLAN TAB -->
 <section class="tab" id="tab-plan">
 
+  <!-- Ajustes que el coach guardó por chat -->
+  <div id="coach-notes-plan"></div>
+
   <!-- HOY (sesion expandida) -->
   <div id="plan-today-card" class="card" style="margin-bottom:10px"></div>
 
@@ -566,57 +604,65 @@ select.form-ctrl option{background:var(--s2)}
 
 <!-- COMIDA TAB -->
 <section class="tab" id="tab-comida">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+  <!-- HERO: tipo de día + adherencia del día -->
+  <div class="meal-hero">
     <div>
-      <div style="font-size:17px;font-weight:700;letter-spacing:-.01em">Nutricion del dia</div>
-      <div id="day-type-badge" style="margin-top:4px"></div>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-.01em">Tu comida de hoy</div>
+      <div id="day-type-badge" style="margin-top:5px"></div>
+      <div id="fuel-headline" style="font-size:12px;color:var(--t2);margin-top:6px"></div>
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="openIxEditor()">Ajustar</button>
+    <div id="adherence-ring"></div>
   </div>
 
-  <!-- Fuel del día (gramos según el entreno) -->
-  <div class="card" id="fuel-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
-      <div class="label">Fuel del día</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Tus gramos objetivo de hoy según lo que vas a entrenar (fuel for the work required, como Fuelin/Hexis). Más carbos en días duros o largos, menos en descanso. La proteína se mantiene alta para tu meta de 68kg sin perder músculo." onclick="showTip(this.dataset.tip)">i</span>
+  <!-- Ajustes que el coach guardó por chat -->
+  <div id="coach-notes-comida"></div>
+
+  <!-- PLAN: platillos sugeridos por momento -->
+  <div id="meal-plan"></div>
+
+  <!-- REGISTRAR COMIDA (foto → IA infiere macros) -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="label">Lo que comí hoy</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="uploadAIFile('meal')">📷 Foto</button>
+        <button class="btn btn-secondary btn-sm" onclick="openMealManual()">+ Manual</button>
+      </div>
     </div>
-    <div id="fuel-content"></div>
+    <div id="meal-log"></div>
   </div>
 
-  <!-- Carbos en la bici (intra-entreno) -->
+  <!-- CARBOS EN LA BICI + inventario de geles/bebidas -->
   <div class="card" id="fuel-ride-card">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
-      <div class="label">Carbos en la bici</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cuántos carbohidratos y líquido meter por hora DURANTE el entreno. Es donde más se gana o se pierde rendimiento en salidas largas." onclick="showTip(this.dataset.tip)">i</span>
+      <div class="label">Durante el entreno</div>
+      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cuántos carbohidratos y líquido meter por hora DURANTE el entreno, y con qué productos de los que tenés. Es donde más se gana o se pierde rendimiento en salidas largas." onclick="showTip(this.dataset.tip)">i</span>
     </div>
     <div id="fuel-ride-content"></div>
+    <div id="fuel-inventory" style="margin-top:14px"></div>
   </div>
 
-  <div class="card" style="padding:0 16px">
-    <div id="collap-ix"></div>
-  </div>
-
+  <!-- HIDRATACION -->
   <div class="card">
-    <div class="label" style="margin-bottom:10px">Timing nutricional</div>
-    <div class="timing-row" id="timing-row"></div>
-  </div>
-
-  <div class="card">
-    <div class="label" style="margin-bottom:10px">Hidratacion</div>
+    <div class="label" style="margin-bottom:10px">Hidratación</div>
     <div id="hydration-content"></div>
   </div>
 
-  <div class="card" style="padding:0 16px">
-    <div id="collap-foods"></div>
-  </div>
+  <!-- LO QUE NO COMO -->
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="label">Lo que no como</div>
       <button onclick="saveFoodRestrict()" class="btn btn-secondary btn-sm">Guardar</button>
     </div>
-    <textarea id="food-restrict-input" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:none;min-height:80px;font-family:var(--font)" placeholder="Ej: No como cerdo, mariscos, lacteos..."></textarea>
-    <div style="font-size:11px;color:var(--t3);margin-top:6px">El coach evitara sugerir estos alimentos.</div>
+    <textarea id="food-restrict-input" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:none;min-height:70px;font-family:var(--font)" placeholder="Ej: No como cerdo, mariscos, lacteos..." oninput="onRestrictInput()"></textarea>
+    <div style="font-size:11px;color:var(--t3);margin-top:6px">Los platillos sugeridos y el coach evitan estos alimentos.</div>
   </div>
+
+  <!-- DETALLE (colapsable): fuel del día en gramos + intercambios -->
+  <div class="card" style="padding:0 16px"><div id="collap-fueldet"></div></div>
+  <div class="card" style="padding:0 16px"><div id="collap-ix"></div></div>
+
+  <div id="sync-status" style="text-align:center;font-size:10px;color:var(--t3);margin:2px 0 4px"></div>
 </section>
 
 <!-- SALUD TAB -->
@@ -717,6 +763,22 @@ function daysUntil(iso){
   return Math.ceil(diff/86400000);
 }
 
+// Fecha de la última actividad: "Hoy 6:30am" / "Ayer" / "Lun 23 jun, 6:30am"
+function fmtActivityDate(s){
+  if(!s) return '';
+  const d=new Date(String(s).replace(' ','T'));
+  if(isNaN(d)) return '';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const day=new Date(d); day.setHours(0,0,0,0);
+  const diffDays=Math.round((today-day)/86400000);
+  const time=d.toLocaleTimeString('es-CR',{hour:'numeric',minute:'2-digit'}).replace(/\s/g,'').toLowerCase();
+  const hasTime=/\d:\d/.test(String(s));
+  if(diffDays===0) return 'Hoy'+(hasTime?' '+time:'');
+  if(diffDays===1) return 'Ayer'+(hasTime?' '+time:'');
+  const lbl=d.toLocaleDateString('es-CR',{weekday:'short',day:'numeric',month:'short'});
+  return lbl+(hasTime?', '+time:'');
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CRYPTO — AES-256-GCM matching Python script exactly
 // ═══════════════════════════════════════════════════════════════
@@ -734,6 +796,110 @@ async function decryptData(b64,pass){
   const key=await deriveKey(pass,salt);
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
   return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYNC MULTI-DISPOSITIVO (Gist secreto con el token de GitHub)
+// Guarda el estado del usuario en un gist privado para que el teléfono y
+// la tablet vean lo mismo. Si el token no tiene scope "gist", cae a modo
+// local sin romper nada.
+// ═══════════════════════════════════════════════════════════════
+const SYNC_FILE='coach_vegabikes_userdata.json';
+const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides'];
+const SYNC_PREFIXES=['meal_log_','meal_pick_','checkin_'];
+let syncState={enabled:false,status:'local',reason:''};
+let _pushTimer=null;
+function ghTok(){return localStorage.getItem('gh_token');}
+function ghGistHeaders(){return {'Authorization':'Bearer '+ghTok(),'Accept':'application/vnd.github+json'};}
+function syncCollect(){
+  const kv={};
+  SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)kv[k]=v;});
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(SYNC_PREFIXES.some(p=>k.startsWith(p)))kv[k]=localStorage.getItem(k);}
+  return kv;
+}
+function syncApply(kv){
+  Object.entries(kv||{}).forEach(([k,v])=>{
+    if(k.startsWith('meal_log_')){
+      try{
+        const local=JSON.parse(localStorage.getItem(k)||'[]');
+        const remote=JSON.parse(v||'[]');
+        const seen=new Set(local.map(m=>m.t));
+        remote.forEach(m=>{if(!seen.has(m.t))local.push(m);});
+        localStorage.setItem(k,JSON.stringify(local));return;
+      }catch(_){}
+    }
+    if(v!=null) localStorage.setItem(k,v);
+  });
+}
+async function syncFindGist(){
+  let id=localStorage.getItem('gist_id');
+  if(id) return id;
+  const r=await fetch('https://api.github.com/gists?per_page=100',{headers:ghGistHeaders()});
+  if(!r.ok) throw {code:r.status};
+  const list=await r.json();
+  const g=list.find(x=>x.files&&x.files[SYNC_FILE]);
+  if(g){localStorage.setItem('gist_id',g.id);return g.id;}
+  return null;
+}
+async function syncCreateGist(){
+  const body={description:'Coach Vegabikes — datos del usuario (privado)',public:false,
+    files:{[SYNC_FILE]:{content:JSON.stringify({ts:Date.now(),kv:syncCollect()})}}};
+  const r=await fetch('https://api.github.com/gists',{method:'POST',headers:ghGistHeaders(),body:JSON.stringify(body)});
+  if(!r.ok) throw {code:r.status};
+  const g=await r.json();
+  localStorage.setItem('gist_id',g.id);
+  return g.id;
+}
+async function syncPull(){
+  if(!ghTok()){syncState={enabled:false,status:'local',reason:''};renderSyncStatus();return;}
+  try{
+    let id=await syncFindGist();
+    if(!id){id=await syncCreateGist();syncState={enabled:true,status:'ok',reason:''};localStorage.setItem('sync_ts',Date.now());renderSyncStatus();return;}
+    const r=await fetch('https://api.github.com/gists/'+id+'?_='+Date.now(),{headers:ghGistHeaders()});
+    if(!r.ok) throw {code:r.status};
+    const g=await r.json();
+    const content=g.files&&g.files[SYNC_FILE]&&g.files[SYNC_FILE].content;
+    syncState={enabled:true,status:'ok',reason:''};
+    if(content){
+      const snap=JSON.parse(content);
+      const localTs=+localStorage.getItem('sync_ts')||0;
+      if(snap.ts && snap.ts>localTs){
+        syncApply(snap.kv);
+        localStorage.setItem('sync_ts',String(snap.ts));
+        if(typeof renderAll==='function') renderAll();
+      } else if(snap.ts && snap.ts<localTs){
+        syncPush(true); // nuestro estado es más nuevo, empujarlo
+      }
+    }
+    renderSyncStatus();
+  }catch(e){
+    syncState={enabled:false,status:'error',reason:(e&&(e.code===403||e.code===404))?'El token de GitHub no tiene permiso de gist; los datos se guardan solo en este dispositivo.':'Sin conexión al sync.'};
+    renderSyncStatus();
+  }
+}
+function syncPush(immediate){
+  if(!ghTok()||syncState.status==='error') return;
+  clearTimeout(_pushTimer);
+  _pushTimer=setTimeout(async()=>{
+    try{
+      let id=localStorage.getItem('gist_id')||await syncFindGist()||await syncCreateGist();
+      const ts=Date.now();
+      const body={files:{[SYNC_FILE]:{content:JSON.stringify({ts,kv:syncCollect()})}}};
+      const r=await fetch('https://api.github.com/gists/'+id,{method:'PATCH',headers:ghGistHeaders(),body:JSON.stringify(body)});
+      if(!r.ok) throw {code:r.status};
+      localStorage.setItem('sync_ts',String(ts));
+      syncState={enabled:true,status:'ok',reason:''};renderSyncStatus();
+    }catch(e){
+      syncState={enabled:false,status:'error',reason:(e&&(e.code===403||e.code===404))?'El token de GitHub no tiene permiso de gist; los datos se guardan solo en este dispositivo.':''};
+      renderSyncStatus();
+    }
+  },immediate?0:1500);
+}
+function renderSyncStatus(){
+  const el=q('#sync-status'); if(!el) return;
+  if(syncState.enabled&&syncState.status==='ok') el.innerHTML='☁︎ Sincronizado entre tus dispositivos';
+  else if(syncState.reason) el.innerHTML='✓ Guardado en este dispositivo · <span style="color:var(--t3)">'+esc(syncState.reason)+'</span>';
+  else el.innerHTML='✓ Guardado en este dispositivo';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1117,6 +1283,23 @@ function renderSpark(vals){
     return `<div class="b ${i===v.length-1?'active':''}" style="height:${h}px" title="${Math.round(x*10)/10}"></div>`;
   }).join('');
 }
+// Barras con semáforo: colorea cada barra según si el valor fue bueno o malo
+// respecto al baseline propio de la serie. dir='up' (más alto mejor: HRV, sueño)
+// o 'down' (más bajo mejor: FC reposo, peso hacia meta). La última va destacada.
+function trendBars(vals,dir){
+  const v=(vals||[]).filter(x=>typeof x==='number'&&!isNaN(x));
+  if(v.length<2) return '<div style="font-size:11px;color:var(--t3)">Histórico insuficiente todavía</div>';
+  const max=Math.max(...v),min=Math.min(...v),rng=(max-min)||1;
+  const mean=v.reduce((a,b)=>a+b,0)/v.length;
+  const sd=Math.sqrt(v.reduce((a,b)=>a+(b-mean)*(b-mean),0)/v.length)||(rng/4)||1;
+  return v.map((x,i)=>{
+    const h=Math.max(4,Math.round(6+((x-min)/rng)*30));
+    let z=(x-mean)/sd; if(dir==='down') z=-z;
+    const cls=z>0.4?'good':(z<-0.4?'bad':'mid');
+    const last=i===v.length-1?' last':'';
+    return `<div class="tb ${cls}${last}" style="height:${h}px" title="${Math.round(x*10)/10}"></div>`;
+  }).join('');
+}
 function pmcStat(label,val,tip,col){
   return `<div style="background:var(--s2);border-radius:8px;padding:10px 4px">
     <div style="font-size:24px;font-weight:800;color:${col||'var(--text)'}">${val}</div>
@@ -1158,6 +1341,7 @@ function setCheckinMetric(m,v){
   const c=getCheckin()||{};
   c[m]=v; c.ts=new Date().toISOString();
   localStorage.setItem(checkinKey(),JSON.stringify(c));
+  syncPush();
   renderCheckin();
 }
 function checkinAvg(c){
@@ -1187,13 +1371,18 @@ function renderTrends(){
   const h=(gData&&gData.history)||[];
   if(h.length<3){el.innerHTML='<div style="font-size:12px;color:var(--t2)">Acumulando histórico desde Garmin…</div>';return;}
   const series=k=>h.map(r=>r&&typeof r[k]==='number'?r[k]:null).filter(x=>x!=null).slice(-30);
-  const metrics=[['hrv','HRV','ms'],['rhr','FC reposo','bpm'],['sleep','Sueño','h'],['weight','Peso','kg']];
-  el.innerHTML=metrics.map(([k,label,unit])=>{
+  const metrics=[['hrv','HRV','ms','up'],['rhr','FC reposo','bpm','down'],['sleep','Sueño','h','up'],['weight','Peso','kg','down']];
+  const legend=`<div style="display:flex;gap:12px;justify-content:flex-end;font-size:9px;color:var(--t3);margin-bottom:8px">
+    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--green);margin-right:3px"></span>bueno</span>
+    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--amber);margin-right:3px"></span>normal</span>
+    <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--red);margin-right:3px"></span>flojo</span>
+  </div>`;
+  el.innerHTML=legend+metrics.map(([k,label,unit,dir])=>{
     const vals=series(k);
     const last=vals.length?vals[vals.length-1]:null;
     return `<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>${label}</span><span style="color:var(--text);font-weight:700">${last!=null?(Math.round(last*10)/10)+' '+unit:'—'}</span></div>
-      <div class="spark-bar" style="height:26px">${renderSpark(vals)}</div>
+      <div class="spark-bar" style="height:26px">${trendBars(vals,dir)}</div>
     </div>`;
   }).join('');
 }
@@ -1365,8 +1554,12 @@ function renderHoy(){
     const pts=[];
     if(gData.tss) pts.push(`TSS ${gData.tss}`);
     if(gData.normPower) pts.push(`NP ${gData.normPower}W`);
+    const adate=fmtActivityDate(gData.activityDate);
     q('#activity-content').innerHTML=`
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${esc(gData.activity)}</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div style="font-size:14px;font-weight:600">${esc(gData.activity)}</div>
+        ${adate?`<div style="font-size:11px;color:var(--t3);white-space:nowrap">${esc(adate)}</div>`:''}
+      </div>
       ${pts.length?`<div style="font-size:12px;color:var(--t2)">${pts.join(' · ')}</div>`:''}
     `;
   }
@@ -1401,6 +1594,7 @@ const DAY_NAMES=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
 const FULL_DAYS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
 
 function renderPlan(){
+  renderCoachNotes();
   const phase=getCurrentPhase();
   const dow=new Date().getDay();
   const todaySess=getSession(gData||{},dow);
@@ -1777,6 +1971,8 @@ function getFoodRestrict(){return localStorage.getItem('food_restrict')||'';}
 function saveFoodRestrict(){
   const v=q('#food-restrict-input')?.value||'';
   localStorage.setItem('food_restrict',v);
+  renderMealPlan();
+  syncPush();
   const btn=document.querySelector('[onclick="saveFoodRestrict()"]');
   if(btn){btn.textContent='Guardado!';setTimeout(()=>btn.textContent='Guardar',1500);}
 }
@@ -1814,19 +2010,29 @@ function fuelDuring(dur,t){
   if(dur<150) return {carb:'30–60 g/h',fluid:'500–750 ml/h',note:'Gel o banano c/40 min + electrolitos.'};
   return {carb:'60–90 g/h',fluid:'500–750 ml/h',note:'Mezclá glucosa+fructosa. Sodio 500–800 mg/h (clima CR).'};
 }
-function renderFuel(){
-  const el=q('#fuel-content'); if(!el) return;
-  const f=computeFuel();
-  const [emoji,clbl,ccol]=f.code;
-  const tile=(v,lbl,sub)=>`<div style="background:var(--s2);border-radius:8px;padding:10px 4px;text-align:center"><div style="font-size:22px;font-weight:800">${v}<span style="font-size:11px;color:var(--t2)">g</span></div><div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em">${lbl}</div><div style="font-size:9px;color:var(--t3)">${sub}</div></div>`;
+function renderFuelInventory(){
+  const el=q('#fuel-inventory'); if(!el) return;
+  const inv=getFuelInv();
+  const t=getDayType();
+  const isRide=t!=='descanso';
+  const rows=inv.map((it,i)=>`<div class="invrow">
+    <input class="inv-input" value="${esc(it.name)}" onchange="updateInv(${i},'name',this.value)">
+    <input class="inv-input" style="width:60px;text-align:center" type="number" value="${it.carb||0}" onchange="updateInv(${i},'carb',this.value)" title="carbos (g)">
+    <select class="inv-input" style="width:84px" onchange="updateInv(${i},'type',this.value)">
+      ${['gel','bebida','barra','comida'].map(o=>`<option value="${o}"${(it.type||'gel')===o?' selected':''}>${o}</option>`).join('')}
+    </select>
+    <button onclick="delInvItem(${i})" style="background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer">×</button>
+  </div>`).join('');
+  const plan=isRide?ridePlanFromInv():null;
   el.innerHTML=`
-    <div style="font-size:13px;font-weight:700;color:${ccol};margin-bottom:10px">${emoji} ${clbl} · ${f.cpk} g/kg de carbos</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-      ${tile(f.carbs,'Carbos',f.cpk+' g/kg')}
-      ${tile(f.protein,'Proteína','1.9 g/kg')}
-      ${tile(f.fat,'Grasa','~0.8 g/kg')}
-    </div>
-    <div style="text-align:right;font-size:12px;color:var(--t2);margin-top:8px">~${f.kcal} kcal objetivo · ${f.wt} kg</div>`;
+    <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2);margin-bottom:6px">Lo que tengo a mano <span style="color:var(--t3);font-size:10px;text-transform:none;letter-spacing:0">(carbos/u · tipo)</span></div>
+    ${rows||'<div style="font-size:12px;color:var(--t3);margin-bottom:6px">Agregá tus geles y bebidas para que arme el plan.</div>'}
+    <button class="chip-add" style="margin-top:8px" onclick="addInvItem()">+ Agregar gel / bebida</button>
+    ${plan&&plan.total?`<div style="margin-top:12px;background:var(--s2);border-radius:10px;padding:12px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px">Plan para hoy (${plan.hours.toFixed(1)}h · ~${plan.total}g carbos)</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.7">${plan.parts.length?plan.parts.map(p=>'• '+p).join('<br>'):'Agregá productos arriba para ver el reparto.'}</div>
+      ${plan.gap>0?`<div style="font-size:11px;color:var(--amber);margin-top:6px">Te faltan ~${plan.gap}g: sumá ${plan.gap>40?'una bebida':'un gel'} más.</div>`:''}
+    </div>`:''}`;
 }
 function renderFuelRide(){
   const el=q('#fuel-ride-content'); if(!el) return;
@@ -1838,6 +2044,236 @@ function renderFuelRide(){
   </div>
   <div style="font-size:12px;color:var(--t3)">${fd.note}</div>`;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// RECETARIO — platillos por momento, filtrados por exclusiones
+// ═══════════════════════════════════════════════════════════════
+// c/p/f = gramos por porción. kcal se calcula. tags = ingredientes (para excluir).
+const DISHES=[
+  // DESAYUNO
+  {k:'desayuno',n:'Gallo pinto con huevo',e:'🍳',c:55,p:20,f:15,tags:['huevo','frijol','arroz'],note:'Clásico tico, energía estable'},
+  {k:'desayuno',n:'Tostadas francesas con jalea sin azúcar y café',e:'🍞',c:60,p:15,f:12,tags:['huevo','gluten','leche'],note:'Café sin azúcar + 2 rebanadas'},
+  {k:'desayuno',n:'Avena con banano y mantequilla de maní',e:'🥣',c:65,p:15,f:14,tags:['avena','banano','mani'],note:'Carbos de liberación lenta'},
+  {k:'desayuno',n:'Tortilla de huevo con vegetales y aguacate',e:'🥑',c:20,p:18,f:20,tags:['huevo'],note:'Bajo en carbos, ideal descanso'},
+  {k:'desayuno',n:'Yogurt griego con granola y fresas',e:'🍓',c:45,p:20,f:10,tags:['yogurt','nueces','gluten'],note:'Proteína + probióticos'},
+  {k:'desayuno',n:'Panqueques de avena y banano',e:'🥞',c:60,p:18,f:10,tags:['avena','banano','huevo','gluten'],note:'Sin azúcar añadida'},
+  {k:'desayuno',n:'Batido de avena, banano, maní y proteína',e:'🥤',c:55,p:30,f:12,tags:['banano','avena','mani','leche'],note:'Rápido para mañanas con prisa'},
+  {k:'desayuno',n:'Pan integral con aguacate y huevo',e:'🥑',c:40,p:16,f:18,tags:['gluten','huevo'],note:'Grasas buenas'},
+  // ALMUERZO
+  {k:'almuerzo',n:'Casado con pollo a la plancha',e:'🍗',c:70,p:35,f:15,tags:['pollo','frijol','arroz'],note:'El casado tico completo'},
+  {k:'almuerzo',n:'Casado con pescado a la plancha',e:'🐟',c:70,p:35,f:12,tags:['pescado','frijol','arroz'],note:'Proteína magra'},
+  {k:'almuerzo',n:'Arroz integral con atún y ensalada',e:'🥗',c:65,p:30,f:12,tags:['pescado','arroz'],note:'Rápido y completo'},
+  {k:'almuerzo',n:'Bowl de arroz, frijoles, aguacate y res',e:'🥩',c:70,p:32,f:18,tags:['res','frijol','arroz'],note:'Hierro + carbos'},
+  {k:'almuerzo',n:'Pasta integral con pollo y vegetales',e:'🍝',c:85,p:35,f:12,tags:['pollo','gluten'],note:'Buen pre-largo del día siguiente'},
+  {k:'almuerzo',n:'Lentejas con arroz y vegetales',e:'🫘',c:75,p:25,f:8,tags:['lenteja','arroz'],note:'Vegetariano, fibra y hierro'},
+  {k:'almuerzo',n:'Pechuga, camote asado y brócoli',e:'🍠',c:55,p:38,f:10,tags:['pollo'],note:'Carbos limpios del camote'},
+  {k:'almuerzo',n:'Tortilla de papa con ensalada',e:'🥔',c:45,p:18,f:16,tags:['huevo'],note:'Opción sin carne'},
+  // CENA
+  {k:'cena',n:'Pechuga a la plancha con vegetales',e:'🍗',c:25,p:38,f:10,tags:['pollo'],note:'Cena ligera, alta proteína'},
+  {k:'cena',n:'Salmón con quinoa y ensalada',e:'🐟',c:40,p:35,f:18,tags:['pescado','quinoa'],note:'Omega-3 para recuperar'},
+  {k:'cena',n:'Sopa de pollo con vegetales',e:'🍲',c:30,p:28,f:8,tags:['pollo'],note:'Reconfortante y liviana'},
+  {k:'cena',n:'Wrap integral de pollo y vegetales',e:'🌯',c:45,p:30,f:12,tags:['pollo','gluten'],note:'Práctico'},
+  {k:'cena',n:'Tortilla de huevos con espinaca y aguacate',e:'🍳',c:15,p:20,f:20,tags:['huevo'],note:'Low-carb, día de descanso'},
+  {k:'cena',n:'Bowl de quinoa, frijoles y aguacate',e:'🥑',c:55,p:18,f:16,tags:['frijol','quinoa'],note:'Vegetariano completo'},
+  {k:'cena',n:'Tacos de pescado con repollo',e:'🌮',c:45,p:30,f:12,tags:['pescado','gluten'],note:'Liviano y sabroso'},
+  // SNACK
+  {k:'snack',n:'Banano con mantequilla de maní',e:'🍌',c:30,p:7,f:10,tags:['banano','mani'],note:'Pre o post entreno'},
+  {k:'snack',n:'Yogurt griego con fresas',e:'🍓',c:20,p:18,f:5,tags:['yogurt'],note:'Proteína entre comidas'},
+  {k:'snack',n:'Puñado de nueces y fruta',e:'🥜',c:25,p:8,f:15,tags:['nueces'],note:'Grasas buenas'},
+  {k:'snack',n:'Barra proteica',e:'🍫',c:25,p:20,f:8,tags:['leche'],note:'Práctico para la oficina'},
+  {k:'snack',n:'Tostada integral con aguacate',e:'🥑',c:25,p:6,f:12,tags:['gluten'],note:'Saciante'},
+  {k:'snack',n:'Huevos duros con fruta',e:'🥚',c:20,p:14,f:10,tags:['huevo'],note:'Proteína portátil'},
+  {k:'snack',n:'Galletas de arroz con hummus',e:'🫓',c:30,p:8,f:6,tags:['gluten','garbanzo'],note:'Sin lácteos'},
+  // PRE-ENTRENO (alto carbo, baja fibra/grasa)
+  {k:'pre',n:'Avena con miel y banano',e:'🥣',c:70,p:12,f:6,tags:['avena','banano'],note:'2–3h antes'},
+  {k:'pre',n:'Pan blanco con miel y café',e:'🍯',c:65,p:8,f:4,tags:['gluten'],note:'Fácil de digerir'},
+  {k:'pre',n:'Arroz blanco con huevo',e:'🍚',c:70,p:15,f:8,tags:['huevo','arroz'],note:'Para salidas largas'},
+  {k:'pre',n:'Banano + pan + café (rápido)',e:'🍌',c:60,p:6,f:4,tags:['gluten','banano'],note:'Ride temprano, 60–90min antes'},
+  // POST-ENTRENO (carbos + proteína, ventana 30–60min)
+  {k:'post',n:'Batido recovery: leche, banano y proteína',e:'🥤',c:50,p:30,f:5,tags:['leche','banano'],note:'Ventana 30–60min'},
+  {k:'post',n:'Arroz con pollo',e:'🍚',c:60,p:30,f:8,tags:['pollo','arroz'],note:'Reposición sólida'},
+  {k:'post',n:'Yogurt griego con granola y miel',e:'🍯',c:45,p:25,f:8,tags:['yogurt','gluten','nueces'],note:'Rápido'},
+  {k:'post',n:'Sándwich de atún integral',e:'🥪',c:45,p:28,f:10,tags:['pescado','gluten'],note:'Práctico'}
+];
+const dishKcal=d=>Math.round(d.c*4+d.p*4+d.f*9);
+
+// Exclusiones: expande "lo que no como" a tags de ingredientes
+const ING_SYN={
+  huevo:['huevo','huevos','egg'],
+  pollo:['pollo','chicken'],
+  res:['res','carne roja','bistec','beef','carne'],
+  cerdo:['cerdo','chancho','tocineta','tocino','jamon','pork'],
+  pescado:['pescado','atun','atún','tilapia','salmon','salmón','fish'],
+  mariscos:['marisco','mariscos','camaron','camarón','camarones','shrimp'],
+  leche:['leche','lacteo','lacteos','lácteo','lácteos','dairy'],
+  yogurt:['yogurt','yogur'],
+  gluten:['gluten','trigo','pan','harina','wheat','celiac'],
+  mani:['mani','maní','cacahuate','peanut'],
+  nueces:['nuez','nueces','almendra','almendras','nut'],
+  frijol:['frijol','frijoles','poroto','bean'],
+  lenteja:['lenteja','lentejas'],
+  garbanzo:['garbanzo','garbanzos','hummus'],
+  avena:['avena','oat'],
+  banano:['banano','banana','platano','plátano'],
+  arroz:['arroz','rice'],
+  quinoa:['quinoa','quinua'],
+  soya:['soya','soja','soy','tofu']
+};
+const stripAccents=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function getExcludedTags(){
+  const r=stripAccents(getFoodRestrict());
+  if(!r.trim()) return new Set();
+  const out=new Set();
+  for(const [tag,syns] of Object.entries(ING_SYN)){
+    if(syns.some(s=>r.includes(stripAccents(s)))) out.add(tag);
+  }
+  // "lacteos"/"dairy" cubre yogurt también
+  if(/lacteo|dairy/.test(r)) out.add('yogurt');
+  return out;
+}
+function dishAllowed(d,excl){return !d.tags.some(t=>excl.has(t));}
+// Idoneidad por tipo de día según carga de carbos del platillo
+function dishSuits(d,t){
+  if(d.k==='pre'||d.k==='post'||d.k==='snack') return true;
+  if(t==='descanso') return d.c<=55;
+  if(t==='largo')    return d.c>=50;
+  return true;
+}
+function dayPickKey(){return 'meal_pick_'+ymd();}
+function getPickOffsets(){try{return JSON.parse(localStorage.getItem(dayPickKey())||'{}');}catch(_){return {};}}
+function setPickOffset(k,v){const o=getPickOffsets();o[k]=v;localStorage.setItem(dayPickKey(),JSON.stringify(o));}
+function dateSeed(){const p=ymd().split('-');return (parseInt(p[2],10)+parseInt(p[1],10)*31)|0;}
+function pickDish(kind,t){
+  const excl=getExcludedTags();
+  let pool=DISHES.filter(d=>d.k===kind&&dishAllowed(d,excl));
+  const suited=pool.filter(d=>dishSuits(d,t));
+  if(suited.length) pool=suited;
+  if(!pool.length) return null;
+  const off=getPickOffsets()[kind]||0;
+  return pool[(dateSeed()+off)%pool.length];
+}
+function swapDish(kind){
+  const o=(getPickOffsets()[kind]||0)+1;
+  setPickOffset(kind,o);
+  syncPush();
+  renderMealPlan();
+}
+function momentsForDay(t){
+  const ride=t!=='descanso';
+  const list=[];
+  if(ride) list.push(['pre','Antes del entreno','gr-r']);
+  list.push(['desayuno','Desayuno','gr-d']);
+  list.push(['almuerzo','Almuerzo','gr-a']);
+  list.push(['snack','Snack','gr-s']);
+  list.push(['cena','Cena','gr-c']);
+  if(ride) list.push(['post','Después del entreno','gr-s']);
+  return list;
+}
+function renderMealPlan(){
+  const el=q('#meal-plan'); if(!el) return;
+  const t=getDayType();
+  el.innerHTML=momentsForDay(t).map(([kind,label,grad])=>{
+    const d=pickDish(kind,t);
+    if(!d) return `<div class="meal-card ${grad}"><div class="mc-moment">${label}</div><div class="mc-note" style="margin-top:6px">Sin opción disponible con tus restricciones. Ajustá "Lo que no como" o pedile ideas al coach.</div></div>`;
+    return `<div class="meal-card ${grad}">
+      <button class="mc-swap" onclick="swapDish('${kind}')" title="Otro platillo">⟳</button>
+      <div class="mc-head">
+        <div class="meal-emoji">${d.e}</div>
+        <div style="min-width:0">
+          <div class="mc-moment">${label}</div>
+          <div class="mc-dish">${esc(d.n)}</div>
+        </div>
+      </div>
+      <div class="mc-note">${esc(d.note)}</div>
+      <div class="mc-macros">
+        <span class="macro-pill"><b>${dishKcal(d)}</b> kcal</span>
+        <span class="macro-pill"><b>${d.c}</b>g carbos</span>
+        <span class="macro-pill"><b>${d.p}</b>g proteína</span>
+        <span class="macro-pill"><b>${d.f}</b>g grasa</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Tracking de comidas (log diario + adherencia) ──────────────────
+function mealLogKey(d){return 'meal_log_'+(d||ymd());}
+function getMealLog(d){try{return JSON.parse(localStorage.getItem(mealLogKey(d))||'[]');}catch(_){return [];}}
+function saveMealLog(arr,d){localStorage.setItem(mealLogKey(d),JSON.stringify(arr));syncPush();}
+function addMeal(m){const a=getMealLog();a.push(m);saveMealLog(a);renderComida();}
+function deleteMeal(i){const a=getMealLog();a.splice(i,1);saveMealLog(a);renderComida();}
+function mealTotals(){return getMealLog().reduce((s,m)=>({kcal:s.kcal+(+m.kcal||0),c:s.c+(+m.c||0),p:s.p+(+m.p||0),f:s.f+(+m.f||0)}),{kcal:0,c:0,p:0,f:0});}
+function openMealManual(){
+  const name=prompt('¿Qué comiste?'); if(!name) return;
+  const kcal=parseInt(prompt('Calorías aprox (kcal):','')||'0',10)||0;
+  const c=parseInt(prompt('Carbos (g):','')||'0',10)||0;
+  const p=parseInt(prompt('Proteína (g):','')||'0',10)||0;
+  const f=parseInt(prompt('Grasa (g):','')||'0',10)||0;
+  addMeal({name,kcal:kcal||(c*4+p*4+f*9),c,p,f,t:new Date().toISOString()});
+}
+function renderMealLog(){
+  const el=q('#meal-log'); if(!el) return;
+  const log=getMealLog();
+  if(!log.length){el.innerHTML='<div style="font-size:12px;color:var(--t3)">Sacale una foto a lo que comés y registro las calorías y macros automáticamente.</div>';return;}
+  el.innerHTML=log.map((m,i)=>`<div class="logrow">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name||'Comida')}</div>
+      <div style="font-size:11px;color:var(--t2)">${m.kcal||0} kcal · ${m.c||0}c · ${m.p||0}p · ${m.f||0}g</div>
+    </div>
+    <button onclick="deleteMeal(${i})" style="background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer">×</button>
+  </div>`).join('');
+}
+function renderAdherence(){
+  const el=q('#adherence-ring'); if(!el) return;
+  const tgt=computeFuel();
+  const tot=mealTotals();
+  const pct=tgt.kcal?Math.min(150,Math.round(tot.kcal/tgt.kcal*100)):0;
+  const col=tot.kcal===0?'var(--t3)':(pct>=85&&pct<=115?'var(--green)':(pct<85?'var(--amber)':'var(--red)'));
+  const R=28,C=2*Math.PI*R,off=C*(1-Math.min(1,pct/100));
+  el.innerHTML=`<div class="ring">
+    <svg width="64" height="64" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="${R}" fill="none" stroke="var(--s3)" stroke-width="6"/>
+      <circle cx="32" cy="32" r="${R}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
+    </svg>
+    <div class="ring-val"><div class="ring-num" style="color:${col}">${pct}%</div><div class="ring-sub">kcal</div></div>
+  </div>`;
+  const fh=q('#fuel-headline');
+  if(fh) fh.innerHTML=`Llevás <b style="color:var(--text)">${tot.kcal}</b> de ~${tgt.kcal} kcal · <b style="color:var(--text)">${tot.c}</b>/${tgt.carbs}g carbos`;
+}
+
+// ── Inventario de geles/bebidas ────────────────────────────────────
+const defaultFuelInv=[
+  {name:'Gel SiS', carb:22, type:'gel'},
+  {name:'Banano', carb:25, type:'comida'},
+  {name:'Bidón Tailwind', carb:40, type:'bebida'}
+];
+function getFuelInv(){try{const v=localStorage.getItem('fuel_inv');return v?JSON.parse(v):defaultFuelInv.slice();}catch(_){return defaultFuelInv.slice();}}
+function setFuelInv(arr){localStorage.setItem('fuel_inv',JSON.stringify(arr));syncPush();}
+function addInvItem(){const a=getFuelInv();a.push({name:'Nuevo',carb:25,type:'gel'});setFuelInv(a);renderFuelInventory();}
+function updateInv(i,k,v){const a=getFuelInv();if(!a[i])return;a[i][k]=k==='carb'?(+v||0):v;setFuelInv(a);if(k==='carb'||k==='type')renderFuelInventory();}
+function delInvItem(i){const a=getFuelInv();a.splice(i,1);setFuelInv(a);renderFuelInventory();}
+function ridePlanFromInv(){
+  const s=getSession(gData||{},new Date().getDay());
+  const t=getDayType();
+  const durMin=s.duration||0;
+  const fd=fuelDuring(durMin,t);
+  // carbos/hora objetivo: tomamos el extremo alto del rango sugerido
+  const cph=durMin<75?20:(durMin<150?50:80);
+  const hours=durMin/60;
+  let total=Math.round(hours*cph);
+  if(!total) return {total:0,parts:[],hours,gap:0};
+  const inv=getFuelInv();
+  let remaining=total, parts=[];
+  const drink=inv.find(i=>i.type==='bebida'&&i.carb>0);
+  if(drink){const n=Math.max(1,Math.round(hours/1.5));parts.push(`${n}× ${drink.name} (${n*drink.carb}g)`);remaining-=n*drink.carb;}
+  const solid=inv.filter(i=>i!==drink&&i.carb>0).sort((a,b)=>b.carb-a.carb);
+  for(const it of solid){
+    if(remaining<=10) break;
+    const n=Math.floor(remaining/it.carb);
+    if(n>=1){parts.push(`${n}× ${it.name} (${n*it.carb}g)`);remaining-=n*it.carb;}
+  }
+  return {total,parts,hours,gap:Math.max(0,remaining)};
+}
+
 function renderComida(){
   const ix=getIx();
   const t=getDayType();
@@ -1845,60 +2281,47 @@ function renderComida(){
   const [lbl,cls]=DAY_TYPE_LABELS[t];
 
   q('#day-type-badge').innerHTML=`<span class="badge ${cls}">${lbl}</span>`;
+  const ri=q('#food-restrict-input');if(ri&&document.activeElement!==ri) ri.value=getFoodRestrict();
 
-  renderFuel();
+  renderMealPlan();
+  renderMealLog();
+  renderAdherence();
   renderFuelRide();
+  renderFuelInventory();
 
-  // Intercambios (detalle, colapsable)
-  const ixHTML=`<div class="ix-grid">${Object.entries({H:data.H,P:data.P,G:data.G,Fr:data.Fr,L:data.L}).map(([k,v])=>`
-    <div class="ix-cell"><div class="ix-val">${v}</div><div class="ix-type">${k}</div></div>`).join('')}</div>
-    <div style="text-align:right;font-size:12px;color:var(--t2);margin-top:8px">~${data.kcal} kcal</div>`;
-  q('#collap-ix').innerHTML=collap('ix','Intercambios (detalle)',ixHTML,false);
-
+  const wt=currentWeight();
   const isRide=t!=='descanso';
-  const f=computeFuel();
-  const preCarb=Math.round(f.wt*(t==='largo'?2:1));
-  const postProt=Math.round(f.wt*0.3);
-  const postCarb=Math.round(f.wt*(t==='largo'?1:0.5));
-  q('#timing-row').innerHTML=`
-    <div class="timing-cell">
-      <div class="tc-lbl">Antes</div>
-      <div class="tc-val">${isRide?'2–3h antes: ~'+preCarb+'g carbos\n(avena/pan/banano)':'Desayuno normal'}</div>
-    </div>
-    <div class="timing-cell">
-      <div class="tc-lbl">Durante</div>
-      <div class="tc-val">${fuelDuring(f.dur,t).carb}</div>
-    </div>
-    <div class="timing-cell">
-      <div class="tc-lbl">Despues</div>
-      <div class="tc-val">${isRide?'30–60min: '+postProt+'g proteína\n+ '+postCarb+'g carbos':'Cena normal'}</div>
-    </div>
-  `;
-
-  const wt=PROFILE.weight;
   q('#hydration-content').innerHTML=`
     <div style="font-size:13px;color:var(--t2);line-height:1.8">
-      <div><b style="color:var(--text)">Base diaria:</b> ${Math.round(wt*0.035*10)/10} L agua (${wt}kg x 35ml)</div>
+      <div><b style="color:var(--text)">Base diaria:</b> ${Math.round(wt*0.035*10)/10} L agua (${wt}kg × 35ml)</div>
       ${isRide?`<div><b style="color:var(--text)">Durante ride:</b> 500–750ml/hora (clima CR)</div>
-      <div><b style="color:var(--text)">Electrolitos:</b> SiS Hydro o Tailwind si >1.5h</div>
-      <div><b style="color:var(--text)">Post-ride:</b> 1.5x el peso perdido en fluidos</div>`:''}
+      <div><b style="color:var(--text)">Electrolitos:</b> 500–800mg sodio/h si >1.5h</div>
+      <div><b style="color:var(--text)">Post-ride:</b> 1.5× el peso perdido en fluidos</div>`:''}
       <div><b style="color:var(--text)">Mañana en ayunas:</b> 500ml agua tibia</div>
-    </div>
-  `;
-
-  const examplesHTML=`
-    <div style="font-size:13px;color:var(--t2);line-height:1.8">
-      <div><b style="color:var(--text)">Desayuno:</b> Avena + 2 huevos + fruta</div>
-      <div><b style="color:var(--text)">Almuerzo:</b> Arroz + frijoles + pollo + ensalada</div>
-      <div><b style="color:var(--text)">Cena:</b> ${t==='descanso'?'Pechuga + vegetales (cena ligera)':'Pasta o arroz + proteina + vegetales'}</div>
-      <div><b style="color:var(--text)">Snacks:</b> Yogurt, fruta, nueces, barra proteica</div>
     </div>`;
-  q('#collap-foods').innerHTML=collap('food-examples','Ejemplos de comidas CR',examplesHTML,false);
-  const ri=q('#food-restrict-input');if(ri) ri.value=getFoodRestrict();
+
+  // Detalle colapsable: fuel del día en gramos + intercambios
+  const f=computeFuel();const[emoji,clbl,ccol]=f.code;
+  const tile=(v,l,sub)=>`<div style="background:var(--s2);border-radius:8px;padding:10px 4px;text-align:center"><div style="font-size:22px;font-weight:800">${v}<span style="font-size:11px;color:var(--t2)">g</span></div><div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em">${l}</div><div style="font-size:9px;color:var(--t3)">${sub}</div></div>`;
+  const fuelHTML=`<div style="font-size:13px;font-weight:700;color:${ccol};margin:4px 0 10px">${emoji} ${clbl} · ${f.cpk} g/kg de carbos</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${tile(f.carbs,'Carbos',f.cpk+' g/kg')}${tile(f.protein,'Proteína','1.9 g/kg')}${tile(f.fat,'Grasa','~0.8 g/kg')}</div>
+    <div style="text-align:right;font-size:12px;color:var(--t2);margin-top:8px">~${f.kcal} kcal objetivo · ${f.wt} kg</div>`;
+  q('#collap-fueldet').innerHTML=collap('fueldet','Fuel del día en gramos (detalle)',fuelHTML,false);
+
+  const ixHTML=`<div class="ix-grid">${Object.entries({H:data.H,P:data.P,G:data.G,Fr:data.Fr,L:data.L}).map(([k,v])=>`
+    <div class="ix-cell"><div class="ix-val">${v}</div><div class="ix-type">${k}</div></div>`).join('')}</div>
+    <div style="text-align:right;font-size:12px;color:var(--t2);margin-top:8px">~${data.kcal} kcal · pedile al coach "ajustá mis intercambios"</div>`;
+  q('#collap-ix').innerHTML=collap('ix','Intercambios (detalle)',ixHTML,false);
+
+  renderCoachNotes();
+  renderSyncStatus();
 }
 
-function openIxEditor(){
-  alert('Para ajustar tus intercambios, habla con el coach: "Ajusta mis intercambios a H10 P15 G5 Fr3 L2 para dias de descanso"');
+let _restrictTimer=null;
+function onRestrictInput(){
+  localStorage.setItem('food_restrict',q('#food-restrict-input').value||'');
+  clearTimeout(_restrictTimer);
+  _restrictTimer=setTimeout(()=>{renderMealPlan();syncPush();},400);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2017,6 +2440,7 @@ function deleteRace(id){
   if(!confirm('Eliminar carrera?')) return;
   let races=getRaces().filter(r=>r.id!==id);
   localStorage.setItem(RC_KEY,JSON.stringify(races));
+  syncPush();
   renderRaces();
 }
 function saveRace(){
@@ -2035,6 +2459,7 @@ function saveRace(){
   if(id) races=races.map(r=>r.id===parseInt(id)?race:r);
   else races.push(race);
   localStorage.setItem(RC_KEY,JSON.stringify(races));
+  syncPush();
   closeRaceModal();
   renderRaces();
 }
@@ -2059,6 +2484,7 @@ function saveInBody(){
   inbody.push(m);
   inbody.sort((a,b)=>a.date.localeCompare(b.date));
   localStorage.setItem(IB_KEY,JSON.stringify(inbody));
+  syncPush();
   closeIbModal();
   renderSalud();
 }
@@ -2067,6 +2493,7 @@ function deleteInBody(idx){
   const inbody=getInBody();
   inbody.splice(idx,1);
   localStorage.setItem(IB_KEY,JSON.stringify(inbody));
+  syncPush();
   renderSalud();
 }
 
@@ -2156,7 +2583,50 @@ function coachContext(){
   if(np){ s+=`\nÚLTIMA SALIDA: IF ${(np/PROFILE.ftp).toFixed(2)}`+(ap?` · VI ${(np/ap).toFixed(2)}`:''); }
   const pol=computePolar(gData&&gData.power);
   if(pol){ s+=`\nPOLARIZACIÓN (${pol.rides} salidas): fácil ${pol.e}% · gris Z3 ${pol.g}% · duro ${pol.h}%`; }
+  // Comida registrada hoy
+  try{
+    const log=getMealLog();
+    if(log.length){
+      const tot=mealTotals();
+      s+=`\nCOMIDA REGISTRADA HOY: ${tot.kcal} kcal, ${tot.c}g carbos, ${tot.p}g proteína, ${tot.f}g grasa — ${log.map(m=>m.name).join('; ')}`;
+    } else { s+='\nCOMIDA REGISTRADA HOY: nada todavía.'; }
+  }catch(_){}
+  // Inventario de fuel
+  try{
+    const inv=getFuelInv();
+    if(inv.length) s+=`\nGELES/BEBIDAS DISPONIBLES: ${inv.map(i=>i.name+' '+(i.carb||0)+'g('+(i.type||'gel')+')').join(', ')}`;
+  }catch(_){}
+  // Notas/ajustes que el propio coach guardó antes
+  try{
+    const ov=getOverrides();
+    if(ov.trainingNote) s+=`\nAJUSTE DE ENTRENO VIGENTE (lo definiste vos): ${ov.trainingNote}`;
+    if(ov.nutritionNote) s+=`\nAJUSTE DE NUTRICIÓN VIGENTE (lo definiste vos): ${ov.nutritionNote}`;
+  }catch(_){}
   return s;
+}
+// Overrides que el coach puede setear por chat (notas de entreno/nutrición)
+function getOverrides(){try{return JSON.parse(localStorage.getItem('coach_overrides')||'{}');}catch(_){return {};}}
+function setOverrides(o){localStorage.setItem('coach_overrides',JSON.stringify(o));syncPush();}
+function noteCard(icon,title,text,scope){
+  return `<div class="card" style="border-left:3px solid var(--green)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green)">${icon} ${title}</div>
+      <button onclick="clearOverride('${scope}')" style="background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer">×</button>
+    </div>
+    <div style="font-size:13px;color:var(--text);line-height:1.5;margin-top:6px">${esc(text)}</div>
+  </div>`;
+}
+function clearOverride(scope){
+  const ov=getOverrides();
+  if(scope==='nutricion') delete ov.nutritionNote; else delete ov.trainingNote;
+  setOverrides(ov); renderCoachNotes();
+}
+function renderCoachNotes(){
+  const ov=getOverrides();
+  const c=q('#coach-notes-comida');
+  if(c) c.innerHTML=ov.nutritionNote?noteCard('🥗','Ajuste de nutrición del coach',ov.nutritionNote,'nutricion'):'';
+  const p=q('#coach-notes-plan');
+  if(p) p.innerHTML=ov.trainingNote?noteCard('🚴','Ajuste de entreno del coach',ov.trainingNote,'entreno'):'';
 }
 function buildCoachMessages(){
   const sys=`Sos el coach ciclismo personalizado de Sergio, ciclista costarricense de 32 años.
@@ -2196,9 +2666,16 @@ ${coachContext()}
 ZONAS FC (LTHR 178): Z1<120 | Z2:120-139 | Z3:140-161 | Z4:162-178 | Z5>178
 ZONAS POTENCIA (FTP 236W): Z1<118W | Z2:118-165W | Z3:166-189W | Z4:190-212W | Z5:213-259W | Z6>259W
 
-${getFoodRestrict()?'\nRESTRICCIONES ALIMENTARIAS: '+getFoodRestrict():''}
+${getFoodRestrict()?'\nRESTRICCIONES ALIMENTARIAS (NO sugieras estos alimentos): '+getFoodRestrict():''}${localStorage.getItem('labs_extracted')?'\nEXAMENES LAB: '+localStorage.getItem('labs_extracted').slice(0,600):''}
 
-${getFoodRestrict()?'\nRESTRICCIONES ALIMENTARIAS: '+getFoodRestrict():''}${localStorage.getItem('labs_extracted')?'\nEXAMENES LAB: '+localStorage.getItem('labs_extracted').slice(0,600):''}
+PODÉS MODIFICAR SU PLAN: cuando, conversando, decidás cambiar algo de su entrenamiento o alimentación, además de explicarlo en palabras, agregá AL FINAL de tu mensaje un bloque de acción para que la app lo guarde y se sincronice entre sus dispositivos. Formato exacto (JSON en una línea entre las marcas):
+[[ACTION {"type":"...","...":"..."}]]
+Tipos disponibles:
+- Nota de entrenamiento: {"type":"note","scope":"entreno","text":"qué ajustar y por qué"}
+- Nota de nutrición: {"type":"note","scope":"nutricion","text":"ajuste de comida"}
+- Cambiar intercambios de un tipo de día: {"type":"ix","dayType":"descanso|endurance|calidad|largo","H":9,"P":16,"G":6,"Fr":2,"L":2}
+- Agregar restricción alimentaria: {"type":"restrict","add":"huevo, mariscos"}
+Usá las acciones SOLO cuando realmente estés cambiando algo que pediste o acordaste, no en respuestas informativas. Podés incluir varias marcas [[ACTION ...]] si hace falta.
 
 Responde siempre en espanol costarricense. Se directo, practico y basate en los datos reales. Maximo 3-4 parrafos por respuesta a menos que te pidan mas detalle.`;
 
@@ -2275,6 +2752,40 @@ function extractReply(r){
   if(Array.isArray(c)) return c.filter(b=>b.type==='text').map(b=>b.text||'').join('\n')||'Sin respuesta';
   return 'Sin respuesta';
 }
+// Aplica las acciones [[ACTION {...}]] que el coach incluya en su respuesta:
+// guarda los cambios, los sincroniza y refresca la app. Devuelve el texto sin
+// los bloques crudos + lista legible de lo aplicado.
+function applyCoachActions(reply){
+  const applied=[];
+  let touchedComida=false;
+  const re=/\[\[ACTION\s*([\s\S]*?)\]\]/g;
+  let m;
+  while((m=re.exec(reply))){
+    let act; try{ act=JSON.parse(m[1].trim()); }catch(_){ continue; }
+    try{
+      if(act.type==='note'){
+        const ov=getOverrides();
+        if(act.scope==='nutricion'){ ov.nutritionNote=act.text; applied.push('nota de nutrición'); touchedComida=true; }
+        else { ov.trainingNote=act.text; applied.push('nota de entreno'); }
+        ov.ts=Date.now(); setOverrides(ov);
+      } else if(act.type==='ix' && act.dayType){
+        const ix=getIx(); const d=ix[act.dayType]||{};
+        ['H','P','G','Fr','L'].forEach(k=>{ if(typeof act[k]==='number') d[k]=act[k]; });
+        d.kcal=Math.round((d.H||0)*70+(d.P||0)*45+(d.G||0)*45+(d.Fr||0)*60+(d.L||0)*45);
+        ix[act.dayType]=d; localStorage.setItem(IX_KEY,JSON.stringify(ix)); syncPush();
+        applied.push('intercambios '+act.dayType); touchedComida=true;
+      } else if(act.type==='restrict' && act.add){
+        const cur=getFoodRestrict().trim();
+        const merged=(cur?cur+', ':'')+act.add;
+        localStorage.setItem('food_restrict',merged); syncPush();
+        applied.push('restricción: '+act.add); touchedComida=true;
+      }
+    }catch(_){}
+  }
+  const clean=reply.replace(re,'').replace(/\n{3,}/g,'\n\n').trim();
+  if(applied.length){ if(touchedComida&&typeof renderComida==='function') renderComida(); if(typeof renderCoachNotes==='function') renderCoachNotes(); }
+  return {clean,applied};
+}
 async function sendMsg(){
   const input=q('#chat-input');
   const text=input.value.trim();
@@ -2290,7 +2801,8 @@ async function sendMsg(){
     const groqMsgs=messages.map(m=>({role:m.role,content:typeof m.content==='string'?m.content:JSON.stringify(m.content)}));
     const reply=await callGroq(groqMsgs);
     typing.classList.remove('typing');
-    typing.textContent=reply;
+    const {clean,applied}=applyCoachActions(reply);
+    typing.textContent=clean+(applied.length?'\n\n✓ Apliqué: '+applied.join(' · '):'');
     chatHistory.push({role:'assistant',content:reply});
   }catch(e){
     typing.classList.remove('typing');
@@ -2349,13 +2861,23 @@ async function processAIFile(evt){
     const isPDF=mime==='application/pdf';
     const pi='Extrae datos InBody. Responde SOLO JSON sin backticks: {"date":"YYYY-MM-DD","weight":X.X,"muscle":X.X,"fat":X.X,"tmb":X}. null si no lees.';
     const pl='Extrae examenes de laboratorio. Formato: EXAMEN: valor unidad (rango). Un examen por linea. Solo datos.';
-    const pm=_aiMode==='inbody'?pi:pl;
+    const pmeal='Eres nutricionista. Mira la foto del plato y estima sus macros para la porción visible. Responde SOLO JSON sin backticks ni texto: {"name":"nombre corto del plato","kcal":N,"c":N,"p":N,"f":N} donde c=carbohidratos g, p=proteína g, f=grasa g. Si no es comida, responde null.';
+    const pm=_aiMode==='inbody'?pi:(_aiMode==='meal'?pmeal:pl);
     let txt='';
     if(isPDF){st.textContent='Extrayendo texto del PDF...';const pdfTxt=await extractPDFText(b64);st.textContent='Analizando...';txt=await callGroq([{role:'user',content:pm+'\n\nTexto:\n'+pdfTxt}]);}
-    else{st.textContent='Analizando imagen...';txt=await callGroq([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:pm}]}],true);}
+    else{st.textContent=_aiMode==='meal'?'Estimando calorías y macros...':'Analizando imagen...';txt=await callGroq([{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},{type:'text',text:pm}]}],true);}
     if(_aiMode==='inbody'){
       let parsed;try{const m=txt.match(/\{[^{}]+\}/);parsed=JSON.parse(m?m[0]:txt.trim());}catch(_){throw new Error('No se pudo parsear. Foto mas clara o PDF con texto seleccionable.');}
       ov.style.display='none';q('#ib-date').value=parsed.date||ymd();q('#ib-weight').value=parsed.weight||'';q('#ib-muscle').value=parsed.muscle||'';q('#ib-fat').value=parsed.fat||'';q('#ib-tmb').value=parsed.tmb||'';q('#ib-modal').classList.add('open');
+    } else if(_aiMode==='meal'){
+      let parsed;try{const m=txt.match(/\{[\s\S]*\}/);parsed=JSON.parse(m?m[0]:txt.trim());}catch(_){throw new Error('No se pudo leer el plato. Probá otra foto más clara.');}
+      ov.style.display='none';
+      if(!parsed||!parsed.name){alert('No reconocí comida en la foto. Probá "+ Manual".');return;}
+      const c=+parsed.c||0,p=+parsed.p||0,f=+parsed.f||0;
+      const kcal=+parsed.kcal||(c*4+p*4+f*9);
+      if(confirm(`Detecté: ${parsed.name}\n~${kcal} kcal · ${c}g carbos · ${p}g proteína · ${f}g grasa\n\n¿Agregar al registro de hoy?`)){
+        addMeal({name:parsed.name,kcal,c,p,f,t:new Date().toISOString()});
+      }
     } else {localStorage.setItem('labs_extracted',txt);localStorage.setItem('labs_date',ymd());ov.style.display='none';renderSalud();alert('Examenes guardados.');}
   }catch(err){ov.style.display='none';alert('Error: '+err.message);}
 }
@@ -2476,6 +2998,8 @@ async function init(){
     q('#pp-modal').style.display='flex';
     setSetupMode('classic');
   }
+  // Sync multi-dispositivo: traer el estado guardado en el gist (si hay token).
+  try{ await syncPull(); }catch(_){}
 }
 
 init();

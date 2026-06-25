@@ -209,6 +209,7 @@ def build_payload(api):
     # ── Última actividad ────────────────────────────────────────────────────
     acts = safe(api.get_activities, 0, 1, default=[])
     act_str  = ""
+    act_date = ""
     tss      = 0
     norm_pwr = 0
     vo2max   = 0
@@ -229,6 +230,8 @@ def build_payload(api):
         norm_pwr = int(a.get("normPower") or a.get("normalizedPower") or 0)
         vo2max   = float(a.get("vO2MaxValue") or 0)
         act_str  = f"{name} {dist_km}km FC{hr} {power}W"
+        # Fecha/hora de inicio de la actividad (local) para mostrar en la app.
+        act_date = (a.get("startTimeLocal") or a.get("startTimeGMT") or "")
 
     print(f"  actividad: {act_str}  TSS={tss} NP={norm_pwr}W VO2max={vo2max}")
 
@@ -243,6 +246,7 @@ def build_payload(api):
         "bb7":        bb7,
         "restingHR":  int(resting_hr),
         "activity":   act_str,
+        "activityDate": act_date,
         "tss":        tss,
         "normPower":  norm_pwr,
         "avgPower":   int(power or 0),
