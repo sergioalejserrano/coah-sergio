@@ -63,6 +63,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .macro-pill b{color:var(--text)}
 .mc-swap{position:absolute;top:12px;right:12px;background:var(--s2);border:1px solid var(--border);color:var(--t2);width:30px;height:30px;border-radius:8px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .mc-swap:active{transform:scale(.92)}
+.mc-row{display:flex;align-items:center;gap:10px;cursor:pointer}
+.mc-kcal{text-align:right;white-space:nowrap;flex-shrink:0}
+.mc-kcal .n{font-size:14px;font-weight:800}
+.mc-kcal .u{font-size:10px;font-weight:400;color:var(--t2)}
+.mc-chev{font-size:11px;color:var(--t3);margin-top:2px}
+.mc-recipe{font-size:12px;color:var(--t2);line-height:1.55;margin-top:10px;background:rgba(0,0,0,.22);border-radius:8px;padding:9px 11px}
+.mc-recipe .ri{display:flex;gap:7px;padding:1px 0}
+.mc-recipe .ri:before{content:"•";color:var(--t3);flex-shrink:0}
+.mc-eaten{border-color:var(--green)!important}
+.mc-eaten .meal-emoji{box-shadow:0 0 0 2px var(--green)}
 .meal-card.gr-d{background:linear-gradient(135deg,#2a1f0f,var(--s1))}
 .meal-card.gr-a{background:linear-gradient(135deg,#0f2233,var(--s1))}
 .meal-card.gr-c{background:linear-gradient(135deg,#23160f,var(--s1))}
@@ -77,8 +87,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* Plan: reordenar/ocultar cards */
 .pcard{position:relative}
 .pcard-ctrl{display:none}
-#plan-cards.editing .pcard{border:1px dashed var(--border2);border-radius:14px;padding:6px;margin-bottom:10px}
-#plan-cards.editing .pcard-ctrl{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.editing .pcard{border:1px dashed var(--border2);border-radius:14px;padding:6px;margin-bottom:10px}
+.editing .pcard-ctrl{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .pctl-btn{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 10px;font-size:13px;cursor:pointer;line-height:1}
 .pctl-btn:disabled{opacity:.3}
 /* Stats grid */
@@ -709,50 +719,77 @@ select.form-ctrl option{background:var(--s2)}
   <!-- Ajustes que el coach guardó por chat -->
   <div id="coach-notes-comida"></div>
 
-  <!-- PLAN: platillos sugeridos por momento -->
-  <div id="meal-plan"></div>
+  <!-- Toolbar: editar orden -->
+  <div class="card-head" style="margin-bottom:10px">
+    <span class="sec-ic">🍽️</span>
+    <div class="label">Comida</div>
+    <button class="info-i btn btn-secondary btn-sm" id="comida-edit-btn" onclick="toggleComidaEdit()">Editar orden</button>
+  </div>
 
-  <!-- REGISTRAR COMIDA (foto → IA infiere macros) -->
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="label">Lo que comí hoy</div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-secondary btn-sm" onclick="uploadAIFile('meal')">📷 Foto</button>
-        <button class="btn btn-secondary btn-sm" onclick="openMealManual()">+ Manual</button>
+  <div id="comida-cards">
+    <!-- PLAN: platillos sugeridos por momento -->
+    <div class="pcard" data-card="plan">
+      <div class="pcard-ctrl"></div>
+      <div id="meal-plan"></div>
+    </div>
+
+    <!-- REGISTRAR COMIDA (foto → IA infiere macros) -->
+    <div class="pcard" data-card="log">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="label">Lo que comí hoy</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="uploadAIFile('meal')">📷 Foto</button>
+            <button class="btn btn-secondary btn-sm" onclick="openMealManual()">+ Manual</button>
+          </div>
+        </div>
+        <div id="meal-log"></div>
       </div>
     </div>
-    <div id="meal-log"></div>
-  </div>
 
-  <!-- CARBOS EN LA BICI + inventario de geles/bebidas -->
-  <div class="card" id="fuel-ride-card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
-      <div class="label">Durante el entreno</div>
-      <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cuántos carbohidratos y líquido meter por hora DURANTE el entreno, y con qué productos de los que tenés. Es donde más se gana o se pierde rendimiento en salidas largas." onclick="showTip(this.dataset.tip)">i</span>
+    <!-- CARBOS EN LA BICI + inventario de geles/bebidas -->
+    <div class="pcard" data-card="ride">
+      <div class="pcard-ctrl"></div>
+      <div class="card" id="fuel-ride-card">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+          <div class="label">Durante el entreno</div>
+          <span style="cursor:pointer;color:var(--t3);font-size:13px" data-tip="Cuántos carbohidratos y líquido meter por hora DURANTE el entreno, y con qué productos de los que tenés. Es donde más se gana o se pierde rendimiento en salidas largas." onclick="showTip(this.dataset.tip)">i</span>
+        </div>
+        <div id="fuel-ride-content"></div>
+        <div id="fuel-inventory" style="margin-top:14px"></div>
+      </div>
     </div>
-    <div id="fuel-ride-content"></div>
-    <div id="fuel-inventory" style="margin-top:14px"></div>
-  </div>
 
-  <!-- HIDRATACION -->
-  <div class="card">
-    <div class="label" style="margin-bottom:10px">Hidratación</div>
-    <div id="hydration-content"></div>
-  </div>
-
-  <!-- LO QUE NO COMO -->
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div class="label">Lo que no como</div>
-      <button onclick="saveFoodRestrict()" class="btn btn-secondary btn-sm">Guardar</button>
+    <!-- HIDRATACION -->
+    <div class="pcard" data-card="hydration">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div class="label" style="margin-bottom:10px">Hidratación</div>
+        <div id="hydration-content"></div>
+      </div>
     </div>
-    <textarea id="food-restrict-input" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:none;min-height:70px;font-family:var(--font)" placeholder="Ej: No como cerdo, mariscos, lacteos..." oninput="onRestrictInput()"></textarea>
-    <div style="font-size:11px;color:var(--t3);margin-top:6px">Los platillos sugeridos y el coach evitan estos alimentos.</div>
-  </div>
 
-  <!-- DETALLE (colapsable): fuel del día en gramos + intercambios -->
-  <div class="card" style="padding:0 16px"><div id="collap-fueldet"></div></div>
-  <div class="card" style="padding:0 16px"><div id="collap-ix"></div></div>
+    <!-- LO QUE NO COMO -->
+    <div class="pcard" data-card="restrict">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="label">Lo que no como</div>
+          <button onclick="saveFoodRestrict()" class="btn btn-secondary btn-sm">Guardar</button>
+        </div>
+        <textarea id="food-restrict-input" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:none;min-height:70px;font-family:var(--font)" placeholder="Ej: No como cerdo, mariscos, lacteos..." oninput="onRestrictInput()"></textarea>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">Los platillos sugeridos y el coach evitan estos alimentos.</div>
+      </div>
+    </div>
+
+    <!-- DETALLE (colapsable): fuel del día en gramos + intercambios -->
+    <div class="pcard" data-card="detail">
+      <div class="pcard-ctrl"></div>
+      <div class="card" style="padding:0 16px"><div id="collap-fueldet"></div></div>
+      <div class="card" style="padding:0 16px;margin-top:10px"><div id="collap-ix"></div></div>
+    </div>
+  </div><!-- /comida-cards -->
 
   <div id="sync-status" style="text-align:center;font-size:10px;color:var(--t3);margin:2px 0 4px"></div>
 </section>
@@ -897,7 +934,7 @@ async function decryptData(b64,pass){
 // local sin romper nada.
 // ═══════════════════════════════════════════════════════════════
 const SYNC_FILE='coach_vegabikes_userdata.json';
-const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides','plan_order','plan_hidden','hoy_order','hoy_hidden'];
+const SYNC_KEYS=['food_restrict','fuel_inv','ix2','inbody','carreras','ind_cfg','office_days','labs_extracted','labs_date','coach_overrides','plan_order','plan_hidden','hoy_order','hoy_hidden','comida_order','comida_hidden'];
 const SYNC_PREFIXES=['meal_log_','meal_pick_','checkin_'];
 let syncState={enabled:false,status:'local',reason:''};
 let _pushTimer=null;
@@ -1714,7 +1751,9 @@ const CARD_SCOPES={
   plan:{cont:'plan-cards',btn:'plan-edit-btn',ok:'plan_order',hk:'plan_hidden',
     cards:[['today','Sesión de hoy'],['phase','Fase y carrera'],['week','Próximos 7 días'],['office','Días de oficina'],['races','Carreras'],['extras','Fuerza y movilidad']]},
   hoy:{cont:'hoy-cards',btn:'hoy-edit-btn',ok:'hoy_order',hk:'hoy_hidden',
-    cards:[['session','Sesión de hoy'],['pmc','Forma y carga'],['checkin','¿Cómo amaneciste?'],['indicators','Indicadores'],['activity','Última actividad'],['load','Foco de carga'],['power','Análisis de potencia'],['polar','Polarización'],['trends','Tendencias'],['zones','Zonas']]}
+    cards:[['session','Sesión de hoy'],['pmc','Forma y carga'],['checkin','¿Cómo amaneciste?'],['indicators','Indicadores'],['activity','Última actividad'],['load','Foco de carga'],['power','Análisis de potencia'],['polar','Polarización'],['trends','Tendencias'],['zones','Zonas']]},
+  comida:{cont:'comida-cards',btn:'comida-edit-btn',ok:'comida_order',hk:'comida_hidden',
+    cards:[['plan','Platillos sugeridos'],['log','Lo que comí hoy'],['ride','Durante el entreno'],['hydration','Hidratación'],['restrict','Lo que no como'],['detail','Detalle (gramos e intercambios)']]}
 };
 const cardEditing={plan:false,hoy:false};
 function getCardOrder(s){
@@ -1757,6 +1796,7 @@ function togglePlanEdit(){toggleCardEdit('plan');}
 function applyPlanLayout(){applyCardLayout('plan');}
 function toggleHoyEdit(){toggleCardEdit('hoy');}
 function applyHoyLayout(){applyCardLayout('hoy');}
+function toggleComidaEdit(){toggleCardEdit('comida');}
 function renderPlan(){
   renderCoachNotes();
   const phase=getCurrentPhase();
@@ -2217,49 +2257,49 @@ function renderFuelRide(){
 // c/p/f = gramos por porción. kcal se calcula. tags = ingredientes (para excluir).
 const DISHES=[
   // DESAYUNO
-  {k:'desayuno',n:'Gallo pinto con huevo',e:'🍳',c:55,p:20,f:15,tags:['huevo','frijol','arroz'],note:'Clásico tico, energía estable'},
-  {k:'desayuno',n:'Tostadas francesas con jalea sin azúcar y café',e:'🍞',c:60,p:15,f:12,tags:['huevo','gluten','leche'],note:'Café sin azúcar + 2 rebanadas'},
-  {k:'desayuno',n:'Avena con banano y mantequilla de maní',e:'🥣',c:65,p:15,f:14,tags:['avena','banano','mani'],note:'Carbos de liberación lenta'},
-  {k:'desayuno',n:'Tortilla de huevo con vegetales y aguacate',e:'🥑',c:20,p:18,f:20,tags:['huevo'],note:'Bajo en carbos, ideal descanso'},
-  {k:'desayuno',n:'Yogurt griego con granola y fresas',e:'🍓',c:45,p:20,f:10,tags:['yogurt','nueces','gluten'],note:'Proteína + probióticos'},
-  {k:'desayuno',n:'Panqueques de avena y banano',e:'🥞',c:60,p:18,f:10,tags:['avena','banano','huevo','gluten'],note:'Sin azúcar añadida'},
-  {k:'desayuno',n:'Batido de avena, banano, maní y proteína',e:'🥤',c:55,p:30,f:12,tags:['banano','avena','mani','leche'],note:'Rápido para mañanas con prisa'},
-  {k:'desayuno',n:'Pan integral con aguacate y huevo',e:'🥑',c:40,p:16,f:18,tags:['gluten','huevo'],note:'Grasas buenas'},
+  {k:'desayuno',n:'Gallo pinto con huevo',e:'🍳',c:55,p:20,f:15,tags:['huevo','frijol','arroz'],note:'Clásico tico, energía estable',r:['1 taza de gallo pinto (arroz + frijoles)','2 huevos','½ plátano maduro o aguacate','Café sin azúcar']},
+  {k:'desayuno',n:'Tostadas francesas con jalea sin azúcar y café',e:'🍞',c:60,p:15,f:12,tags:['huevo','gluten','leche'],note:'Café sin azúcar + 2 rebanadas',r:['2 rebanadas de pan integral','1 huevo + 50ml de leche para remojar','1 cda de jalea de fresa sin azúcar','Café sin azúcar']},
+  {k:'desayuno',n:'Avena con banano y mantequilla de maní',e:'🥣',c:65,p:15,f:14,tags:['avena','banano','mani'],note:'Carbos de liberación lenta',r:['40g de avena en hojuelas (≈1 taza cocida)','1 banano en rodajas','1 cda de mantequilla de maní','Canela al gusto · agua o leche']},
+  {k:'desayuno',n:'Tortilla de huevo con vegetales y aguacate',e:'🥑',c:20,p:18,f:20,tags:['huevo'],note:'Bajo en carbos, ideal descanso',r:['3 huevos','½ taza de vegetales (chile, cebolla, tomate)','½ aguacate','Sal y especias']},
+  {k:'desayuno',n:'Yogurt griego con granola y fresas',e:'🍓',c:45,p:20,f:10,tags:['yogurt','nueces','gluten'],note:'Proteína + probióticos',r:['1 taza (200g) de yogurt griego','⅓ taza de granola','½ taza de fresas']},
+  {k:'desayuno',n:'Panqueques de avena y banano',e:'🥞',c:60,p:18,f:10,tags:['avena','banano','huevo','gluten'],note:'Sin azúcar añadida',r:['40g de avena molida','1 banano','2 huevos','Canela · sin azúcar añadida']},
+  {k:'desayuno',n:'Batido de avena, banano, maní y proteína',e:'🥤',c:55,p:30,f:12,tags:['banano','avena','mani','leche'],note:'Rápido para mañanas con prisa',r:['1 scoop de proteína','30g de avena','1 banano','1 cda de maní','250ml de leche']},
+  {k:'desayuno',n:'Pan integral con aguacate y huevo',e:'🥑',c:40,p:16,f:18,tags:['gluten','huevo'],note:'Grasas buenas',r:['2 rebanadas de pan integral','½ aguacate','2 huevos','Sal y limón']},
   // ALMUERZO
-  {k:'almuerzo',n:'Casado con pollo a la plancha',e:'🍗',c:70,p:35,f:15,tags:['pollo','frijol','arroz'],note:'El casado tico completo'},
-  {k:'almuerzo',n:'Casado con pescado a la plancha',e:'🐟',c:70,p:35,f:12,tags:['pescado','frijol','arroz'],note:'Proteína magra'},
-  {k:'almuerzo',n:'Arroz integral con atún y ensalada',e:'🥗',c:65,p:30,f:12,tags:['pescado','arroz'],note:'Rápido y completo'},
-  {k:'almuerzo',n:'Bowl de arroz, frijoles, aguacate y res',e:'🥩',c:70,p:32,f:18,tags:['res','frijol','arroz'],note:'Hierro + carbos'},
-  {k:'almuerzo',n:'Pasta integral con pollo y vegetales',e:'🍝',c:85,p:35,f:12,tags:['pollo','gluten'],note:'Buen pre-largo del día siguiente'},
-  {k:'almuerzo',n:'Lentejas con arroz y vegetales',e:'🫘',c:75,p:25,f:8,tags:['lenteja','arroz'],note:'Vegetariano, fibra y hierro'},
-  {k:'almuerzo',n:'Pechuga, camote asado y brócoli',e:'🍠',c:55,p:38,f:10,tags:['pollo'],note:'Carbos limpios del camote'},
-  {k:'almuerzo',n:'Tortilla de papa con ensalada',e:'🥔',c:45,p:18,f:16,tags:['huevo'],note:'Opción sin carne'},
+  {k:'almuerzo',n:'Casado con pollo a la plancha',e:'🍗',c:70,p:35,f:15,tags:['pollo','frijol','arroz'],note:'El casado tico completo',r:['1 taza de arroz','½ taza de frijoles','150g de pechuga a la plancha','Ensalada + ½ plátano maduro']},
+  {k:'almuerzo',n:'Casado con pescado a la plancha',e:'🐟',c:70,p:35,f:12,tags:['pescado','frijol','arroz'],note:'Proteína magra',r:['1 taza de arroz','½ taza de frijoles','150g de pescado (tilapia/corvina)','Ensalada + picadillo']},
+  {k:'almuerzo',n:'Arroz integral con atún y ensalada',e:'🥗',c:65,p:30,f:12,tags:['pescado','arroz'],note:'Rápido y completo',r:['1 taza de arroz integral','1 lata de atún en agua','Ensalada mixta','1 cda de aceite de oliva']},
+  {k:'almuerzo',n:'Bowl de arroz, frijoles, aguacate y res',e:'🥩',c:70,p:32,f:18,tags:['res','frijol','arroz'],note:'Hierro + carbos',r:['1 taza de arroz','½ taza de frijoles','120g de res magra','½ aguacate']},
+  {k:'almuerzo',n:'Pasta integral con pollo y vegetales',e:'🍝',c:85,p:35,f:12,tags:['pollo','gluten'],note:'Buen pre-largo del día siguiente',r:['100g de pasta integral (en seco)','150g de pollo','1 taza de vegetales','Salsa de tomate natural']},
+  {k:'almuerzo',n:'Lentejas con arroz y vegetales',e:'🫘',c:75,p:25,f:8,tags:['lenteja','arroz'],note:'Vegetariano, fibra y hierro',r:['1 taza de lentejas cocidas','¾ taza de arroz','Vegetales salteados']},
+  {k:'almuerzo',n:'Pechuga, camote asado y brócoli',e:'🍠',c:55,p:38,f:10,tags:['pollo'],note:'Carbos limpios del camote',r:['180g de pechuga','1 camote mediano asado','1 taza de brócoli','1 cdita de aceite de oliva']},
+  {k:'almuerzo',n:'Tortilla de papa con ensalada',e:'🥔',c:45,p:18,f:16,tags:['huevo'],note:'Opción sin carne',r:['2 papas medianas','3 huevos','Cebolla','Ensalada verde']},
   // CENA
-  {k:'cena',n:'Pechuga a la plancha con vegetales',e:'🍗',c:25,p:38,f:10,tags:['pollo'],note:'Cena ligera, alta proteína'},
-  {k:'cena',n:'Salmón con quinoa y ensalada',e:'🐟',c:40,p:35,f:18,tags:['pescado','quinoa'],note:'Omega-3 para recuperar'},
-  {k:'cena',n:'Sopa de pollo con vegetales',e:'🍲',c:30,p:28,f:8,tags:['pollo'],note:'Reconfortante y liviana'},
-  {k:'cena',n:'Wrap integral de pollo y vegetales',e:'🌯',c:45,p:30,f:12,tags:['pollo','gluten'],note:'Práctico'},
-  {k:'cena',n:'Tortilla de huevos con espinaca y aguacate',e:'🍳',c:15,p:20,f:20,tags:['huevo'],note:'Low-carb, día de descanso'},
-  {k:'cena',n:'Bowl de quinoa, frijoles y aguacate',e:'🥑',c:55,p:18,f:16,tags:['frijol','quinoa'],note:'Vegetariano completo'},
-  {k:'cena',n:'Tacos de pescado con repollo',e:'🌮',c:45,p:30,f:12,tags:['pescado','gluten'],note:'Liviano y sabroso'},
+  {k:'cena',n:'Pechuga a la plancha con vegetales',e:'🍗',c:25,p:38,f:10,tags:['pollo'],note:'Cena ligera, alta proteína',r:['180g de pechuga','2 tazas de vegetales al vapor','1 cdita de aceite de oliva']},
+  {k:'cena',n:'Salmón con quinoa y ensalada',e:'🐟',c:40,p:35,f:18,tags:['pescado','quinoa'],note:'Omega-3 para recuperar',r:['150g de salmón','½ taza de quinoa cocida','Ensalada con limón']},
+  {k:'cena',n:'Sopa de pollo con vegetales',e:'🍲',c:30,p:28,f:8,tags:['pollo'],note:'Reconfortante y liviana',r:['150g de pollo desmenuzado','Vegetales (zanahoria, apio, chayote)','Caldo · poco fideo']},
+  {k:'cena',n:'Wrap integral de pollo y vegetales',e:'🌯',c:45,p:30,f:12,tags:['pollo','gluten'],note:'Práctico',r:['1 tortilla integral','120g de pollo','Lechuga, tomate y aguacate']},
+  {k:'cena',n:'Tortilla de huevos con espinaca y aguacate',e:'🍳',c:15,p:20,f:20,tags:['huevo'],note:'Low-carb, día de descanso',r:['3 huevos','1 taza de espinaca','½ aguacate']},
+  {k:'cena',n:'Bowl de quinoa, frijoles y aguacate',e:'🥑',c:55,p:18,f:16,tags:['frijol','quinoa'],note:'Vegetariano completo',r:['¾ taza de quinoa cocida','½ taza de frijoles','½ aguacate','Pico de gallo']},
+  {k:'cena',n:'Tacos de pescado con repollo',e:'🌮',c:45,p:30,f:12,tags:['pescado','gluten'],note:'Liviano y sabroso',r:['2 tortillas','120g de pescado','Repollo rallado','Salsa de yogurt y limón']},
   // SNACK
-  {k:'snack',n:'Banano con mantequilla de maní',e:'🍌',c:30,p:7,f:10,tags:['banano','mani'],note:'Pre o post entreno'},
-  {k:'snack',n:'Yogurt griego con fresas',e:'🍓',c:20,p:18,f:5,tags:['yogurt'],note:'Proteína entre comidas'},
-  {k:'snack',n:'Puñado de nueces y fruta',e:'🥜',c:25,p:8,f:15,tags:['nueces'],note:'Grasas buenas'},
-  {k:'snack',n:'Barra proteica',e:'🍫',c:25,p:20,f:8,tags:['leche'],note:'Práctico para la oficina'},
-  {k:'snack',n:'Tostada integral con aguacate',e:'🥑',c:25,p:6,f:12,tags:['gluten'],note:'Saciante'},
-  {k:'snack',n:'Huevos duros con fruta',e:'🥚',c:20,p:14,f:10,tags:['huevo'],note:'Proteína portátil'},
-  {k:'snack',n:'Galletas de arroz con hummus',e:'🫓',c:30,p:8,f:6,tags:['gluten','garbanzo'],note:'Sin lácteos'},
+  {k:'snack',n:'Banano con mantequilla de maní',e:'🍌',c:30,p:7,f:10,tags:['banano','mani'],note:'Pre o post entreno',r:['1 banano','1 cda de mantequilla de maní']},
+  {k:'snack',n:'Yogurt griego con fresas',e:'🍓',c:20,p:18,f:5,tags:['yogurt'],note:'Proteína entre comidas',r:['1 taza de yogurt griego','½ taza de fresas']},
+  {k:'snack',n:'Puñado de nueces y fruta',e:'🥜',c:25,p:8,f:15,tags:['nueces'],note:'Grasas buenas',r:['30g de nueces mixtas','1 fruta (manzana o banano)']},
+  {k:'snack',n:'Barra proteica',e:'🍫',c:25,p:20,f:8,tags:['leche'],note:'Práctico para la oficina',r:['1 barra proteica (≈20g de proteína)']},
+  {k:'snack',n:'Tostada integral con aguacate',e:'🥑',c:25,p:6,f:12,tags:['gluten'],note:'Saciante',r:['1 rebanada de pan integral','¼ aguacate','Sal y limón']},
+  {k:'snack',n:'Huevos duros con fruta',e:'🥚',c:20,p:14,f:10,tags:['huevo'],note:'Proteína portátil',r:['2 huevos duros','1 fruta']},
+  {k:'snack',n:'Galletas de arroz con hummus',e:'🫓',c:30,p:8,f:6,tags:['gluten','garbanzo'],note:'Sin lácteos',r:['3 galletas de arroz','3 cdas de hummus']},
   // PRE-ENTRENO (alto carbo, baja fibra/grasa)
-  {k:'pre',n:'Avena con miel y banano',e:'🥣',c:70,p:12,f:6,tags:['avena','banano'],note:'2–3h antes'},
-  {k:'pre',n:'Pan blanco con miel y café',e:'🍯',c:65,p:8,f:4,tags:['gluten'],note:'Fácil de digerir'},
-  {k:'pre',n:'Arroz blanco con huevo',e:'🍚',c:70,p:15,f:8,tags:['huevo','arroz'],note:'Para salidas largas'},
-  {k:'pre',n:'Banano + pan + café (rápido)',e:'🍌',c:60,p:6,f:4,tags:['gluten','banano'],note:'Ride temprano, 60–90min antes'},
+  {k:'pre',n:'Avena con miel y banano',e:'🥣',c:70,p:12,f:6,tags:['avena','banano'],note:'2–3h antes',r:['40g de avena','1 cdita de miel','1 banano','Agua']},
+  {k:'pre',n:'Pan blanco con miel y café',e:'🍯',c:65,p:8,f:4,tags:['gluten'],note:'Fácil de digerir',r:['2 rebanadas de pan blanco','1 cda de miel','Café sin azúcar']},
+  {k:'pre',n:'Arroz blanco con huevo',e:'🍚',c:70,p:15,f:8,tags:['huevo','arroz'],note:'Para salidas largas',r:['1 taza de arroz blanco','1 huevo','Poca grasa']},
+  {k:'pre',n:'Banano + pan + café (rápido)',e:'🍌',c:60,p:6,f:4,tags:['gluten','banano'],note:'Ride temprano, 60–90min antes',r:['1 banano','1 rebanada de pan','Café']},
   // POST-ENTRENO (carbos + proteína, ventana 30–60min)
-  {k:'post',n:'Batido recovery: leche, banano y proteína',e:'🥤',c:50,p:30,f:5,tags:['leche','banano'],note:'Ventana 30–60min'},
-  {k:'post',n:'Arroz con pollo',e:'🍚',c:60,p:30,f:8,tags:['pollo','arroz'],note:'Reposición sólida'},
-  {k:'post',n:'Yogurt griego con granola y miel',e:'🍯',c:45,p:25,f:8,tags:['yogurt','gluten','nueces'],note:'Rápido'},
-  {k:'post',n:'Sándwich de atún integral',e:'🥪',c:45,p:28,f:10,tags:['pescado','gluten'],note:'Práctico'}
+  {k:'post',n:'Batido recovery: leche, banano y proteína',e:'🥤',c:50,p:30,f:5,tags:['leche','banano'],note:'Ventana 30–60min',r:['1 scoop de proteína','250ml de leche','1 banano']},
+  {k:'post',n:'Arroz con pollo',e:'🍚',c:60,p:30,f:8,tags:['pollo','arroz'],note:'Reposición sólida',r:['1 taza de arroz','120g de pollo']},
+  {k:'post',n:'Yogurt griego con granola y miel',e:'🍯',c:45,p:25,f:8,tags:['yogurt','gluten','nueces'],note:'Rápido',r:['1 taza de yogurt griego','⅓ taza de granola','1 cdita de miel']},
+  {k:'post',n:'Sándwich de atún integral',e:'🥪',c:45,p:28,f:10,tags:['pescado','gluten'],note:'Práctico',r:['2 rebanadas de pan integral','1 lata de atún en agua','Lechuga y tomate']}
 ];
 const dishKcal=d=>Math.round(d.c*4+d.p*4+d.f*9);
 
@@ -2335,28 +2375,52 @@ function momentsForDay(t){
   if(ride) list.push(['post','Después del entreno','gr-s']);
   return list;
 }
+// Platillos colapsados por defecto (menos scroll). Estado solo de sesión.
+const mealOpen={};
+function toggleMeal(kind){mealOpen[kind]=!mealOpen[kind];renderMealPlan();}
+function recipeHTML(r){
+  if(!r||!r.length) return '';
+  return `<div class="mc-recipe">${r.map(x=>`<div class="ri">${esc(x)}</div>`).join('')}</div>`;
+}
+// ¿Ya registré hoy este platillo? (match por nombre en el log del día)
+function dishEatenToday(name){return getMealLog().some(m=>(m.name||'')===name);}
+function eatDish(kind){
+  const d=pickDish(kind,getDayType());
+  if(!d) return;
+  addMeal({name:d.n,kcal:dishKcal(d),c:d.c,p:d.p,f:d.f,t:new Date().toISOString(),fromDish:true});
+}
 function renderMealPlan(){
   const el=q('#meal-plan'); if(!el) return;
   const t=getDayType();
   el.innerHTML=momentsForDay(t).map(([kind,label,grad])=>{
     const d=pickDish(kind,t);
     if(!d) return `<div class="meal-card ${grad}"><div class="mc-moment">${label}</div><div class="mc-note" style="margin-top:6px">Sin opción disponible con tus restricciones. Ajustá "Lo que no como" o pedile ideas al coach.</div></div>`;
-    return `<div class="meal-card ${grad}">
-      <button class="mc-swap" onclick="swapDish('${kind}')" title="Otro platillo">⟳</button>
-      <div class="mc-head">
+    const open=!!mealOpen[kind];
+    const eaten=dishEatenToday(d.n);
+    return `<div class="meal-card ${grad}${eaten?' mc-eaten':''}">
+      <div class="mc-row" onclick="toggleMeal('${kind}')">
         <div class="meal-emoji">${d.e}</div>
-        <div style="min-width:0">
-          <div class="mc-moment">${label}</div>
+        <div style="min-width:0;flex:1">
+          <div class="mc-moment">${label}${eaten?' · <span style="color:var(--green)">✓ registrado</span>':''}</div>
           <div class="mc-dish">${esc(d.n)}</div>
         </div>
+        <div class="mc-kcal">
+          <div class="n">${dishKcal(d)}<span class="u"> kcal</span></div>
+          <div class="mc-chev">${open?'▲ ocultar':'▼ ver receta'}</div>
+        </div>
       </div>
-      <div class="mc-note">${esc(d.note)}</div>
+      ${open?`
+      <div class="mc-note" style="margin-top:10px">${esc(d.note)}</div>
+      ${recipeHTML(d.r)}
       <div class="mc-macros">
-        <span class="macro-pill"><b>${dishKcal(d)}</b> kcal</span>
         <span class="macro-pill"><b>${d.c}</b>g carbos</span>
         <span class="macro-pill"><b>${d.p}</b>g proteína</span>
         <span class="macro-pill"><b>${d.f}</b>g grasa</span>
       </div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn ${eaten?'btn-secondary':'btn-primary'} btn-sm" style="flex:1" onclick="eatDish('${kind}')">${eaten?'✓ Agregar otra vez':'✓ Ya me lo comí'}</button>
+        <button class="btn btn-secondary btn-sm" onclick="swapDish('${kind}')">⟳ Otro</button>
+      </div>`:''}
     </div>`;
   }).join('');
 }
@@ -2499,6 +2563,9 @@ function renderComida(){
 
   renderCoachNotes();
   renderSyncStatus();
+
+  // Orden / ocultar cards (persistente)
+  applyCardLayout('comida');
 }
 
 let _restrictTimer=null;
