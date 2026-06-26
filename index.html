@@ -748,6 +748,18 @@ select.form-ctrl option{background:var(--s2)}
       </div>
     </div>
 
+    <!-- HISTORIAL MENSUAL: calorías y macros por día -->
+    <div class="pcard" data-card="history">
+      <div class="pcard-ctrl"></div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="label">Historial del mes</div>
+          <div style="display:flex;gap:6px" id="meal-hist-nav"></div>
+        </div>
+        <div id="meal-history"></div>
+      </div>
+    </div>
+
     <!-- CARBOS EN LA BICI + inventario de geles/bebidas -->
     <div class="pcard" data-card="ride">
       <div class="pcard-ctrl"></div>
@@ -1753,7 +1765,7 @@ const CARD_SCOPES={
   hoy:{cont:'hoy-cards',btn:'hoy-edit-btn',ok:'hoy_order',hk:'hoy_hidden',
     cards:[['session','Sesión de hoy'],['pmc','Forma y carga'],['checkin','¿Cómo amaneciste?'],['indicators','Indicadores'],['activity','Última actividad'],['load','Foco de carga'],['power','Análisis de potencia'],['polar','Polarización'],['trends','Tendencias'],['zones','Zonas']]},
   comida:{cont:'comida-cards',btn:'comida-edit-btn',ok:'comida_order',hk:'comida_hidden',
-    cards:[['plan','Platillos sugeridos'],['log','Lo que comí hoy'],['ride','Durante el entreno'],['hydration','Hidratación'],['restrict','Lo que no como'],['detail','Detalle (gramos e intercambios)']]}
+    cards:[['plan','Platillos sugeridos'],['log','Lo que comí hoy'],['history','Historial del mes'],['ride','Durante el entreno'],['hydration','Hidratación'],['restrict','Lo que no como'],['detail','Detalle (gramos e intercambios)']]}
 };
 const cardEditing={plan:false,hoy:false};
 function getCardOrder(s){
@@ -2470,6 +2482,66 @@ function renderMealLog(){
     <button onclick="deleteMeal(${i})" style="background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer">×</button>
   </div>`).join('');
 }
+// ─── Historial mensual de comidas ───────────────────────────────
+let _histOffset=0; // 0 = mes actual, -1 = mes anterior, etc.
+function histMonthNav(d){_histOffset+=d; if(_histOffset>0)_histOffset=0; renderMealHistory();}
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function dayTotals(arr){return arr.reduce((s,m)=>({kcal:s.kcal+(+m.kcal||0),c:s.c+(+m.c||0),p:s.p+(+m.p||0),f:s.f+(+m.f||0)}),{kcal:0,c:0,p:0,f:0});}
+function renderMealHistory(){
+  const el=q('#meal-history'); if(!el) return;
+  const now=new Date();
+  const base=new Date(now.getFullYear(),now.getMonth()+_histOffset,1);
+  const y=base.getFullYear(),mo=base.getMonth();
+  const daysInMonth=new Date(y,mo+1,0).getDate();
+  const today=ymd();
+  // Reunir días con registro de este mes (más reciente primero)
+  const rows=[];
+  for(let day=daysInMonth;day>=1;day--){
+    const ds=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    if(ds>today) continue;
+    const log=getMealLog(ds);
+    if(!log.length) continue;
+    rows.push({ds,day,tot:dayTotals(log),n:log.length});
+  }
+  // Navegación de mes
+  const nav=q('#meal-hist-nav');
+  if(nav){
+    const atCurrent=_histOffset>=0;
+    nav.innerHTML=`<button class="btn btn-secondary btn-sm" onclick="histMonthNav(-1)" style="padding:2px 9px">‹</button>
+      <span style="font-size:12px;color:var(--t2);align-self:center;min-width:84px;text-align:center;text-transform:capitalize">${MESES[mo]} ${y}</span>
+      <button class="btn btn-secondary btn-sm" onclick="histMonthNav(1)" style="padding:2px 9px;${atCurrent?'opacity:.35;pointer-events:none':''}">›</button>`;
+  }
+  if(!rows.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--t3)">Sin comidas registradas este mes. Lo que registrés en "Lo que comí hoy" se guarda acá automáticamente.</div>';
+    return;
+  }
+  // Resumen mensual
+  const sum=rows.reduce((s,r)=>({kcal:s.kcal+r.tot.kcal,c:s.c+r.tot.c,p:s.p+r.tot.p,f:s.f+r.tot.f}),{kcal:0,c:0,p:0,f:0});
+  const nd=rows.length;
+  const avg=k=>Math.round(sum[k]/nd);
+  const maxK=Math.max(...rows.map(r=>r.tot.kcal),1);
+  const tgt=(()=>{try{return computeFuel().kcal||0;}catch(_){return 0;}})();
+  const summary=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">
+    ${[['Prom/día',avg('kcal'),'kcal'],['Carbos',avg('c'),'g'],['Proteína',avg('p'),'g'],['Grasa',avg('f'),'g']]
+      .map(([l,v,u])=>`<div style="background:var(--s2);border-radius:8px;padding:8px 4px;text-align:center"><div style="font-size:16px;font-weight:800">${v}<span style="font-size:9px;color:var(--t2)">${u}</span></div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.03em">${l}</div></div>`).join('')}
+  </div>
+  <div style="font-size:11px;color:var(--t3);margin-bottom:10px">${nd} ${nd===1?'día registrado':'días registrados'} en ${MESES[mo]}${tgt?` · objetivo ~${tgt} kcal/día`:''}</div>`;
+  // Filas por día con mini-barra de kcal
+  const fmtRow=r=>{
+    const dt=new Date(r.ds+'T00:00:00');
+    const dlbl=['dom','lun','mar','mié','jue','vie','sáb'][dt.getDay()];
+    const pct=Math.round(r.tot.kcal/maxK*100);
+    const col=tgt?(r.tot.kcal>=tgt*0.85&&r.tot.kcal<=tgt*1.15?'var(--green)':(r.tot.kcal<tgt*0.85?'var(--amber)':'var(--red)')):'var(--blue)';
+    return `<div style="margin-bottom:9px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px">
+        <div style="font-size:12px;font-weight:600"><span style="color:var(--t3);text-transform:capitalize">${dlbl}</span> ${r.day}</div>
+        <div style="font-size:11px;color:var(--t2)"><b style="color:var(--text)">${r.tot.kcal}</b> kcal · ${r.tot.c}c · ${r.tot.p}p · ${r.tot.f}g</div>
+      </div>
+      <div style="height:6px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px"></div></div>
+    </div>`;
+  };
+  el.innerHTML=summary+rows.map(fmtRow).join('');
+}
 function renderAdherence(){
   const el=q('#adherence-ring'); if(!el) return;
   const tgt=computeFuel();
@@ -2533,6 +2605,7 @@ function renderComida(){
 
   renderMealPlan();
   renderMealLog();
+  renderMealHistory();
   renderAdherence();
   renderFuelRide();
   renderFuelInventory();
@@ -2954,9 +3027,9 @@ async function callGroq(msgs,vis=false){
   // devolver "Provider returned error" cuando el proveedor upstream esta saturado,
   // asi que probamos varios como respaldo antes de rendirnos.
   const models=isOR
-    ?(vis?['meta-llama/llama-3.2-11b-vision-instruct:free']
+    ?(vis?['meta-llama/llama-4-scout:free','meta-llama/llama-4-maverick:free','meta-llama/llama-3.2-11b-vision-instruct:free']
          :['meta-llama/llama-3.3-70b-instruct:free','google/gemma-2-9b-it:free','mistralai/mistral-7b-instruct:free','meta-llama/llama-3.2-3b-instruct:free'])
-    :[vis?'llama-3.2-11b-vision-preview':'llama-3.3-70b-versatile'];
+    :(vis?['meta-llama/llama-4-scout-17b-16e-instruct','meta-llama/llama-4-maverick-17b-128e-instruct']:['llama-3.3-70b-versatile']);
   const headers={'Authorization':'Bearer '+k,'Content-Type':'application/json'};
   if(isOR){headers['HTTP-Referer']='https://sergioalejserrano.github.io';headers['X-Title']='Coach Vegabikes';}
   let lastErr='No se pudo contactar al coach';
